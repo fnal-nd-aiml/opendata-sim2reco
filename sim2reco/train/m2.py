@@ -31,13 +31,23 @@ def to_dev(b, dev):
     return {k: v.to(dev, non_blocking=True) for k, v in b.items()}
 
 
+def apply_holdout(d, split, exclude_inttype):
+    """Remove interaction modes (GENIE mc_intType codes) from train AND validation; they stay in test."""
+    if exclude_inttype:
+        held = np.isin(d["intType"], exclude_inttype)
+        split = split.copy(); split[held & (split != 2)] = -1
+        print(f"holdout: {held.sum():,} events of intType {exclude_inttype} removed from train/val "
+              f"({(held & (split == 2)).sum():,} remain in test)", flush=True)
+    return split
+
+
 def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_model=128, n_layers=4,
-          flow_hidden=768, flow_layers=5, max_train_events=None, log_every=200):
+          flow_hidden=768, flow_layers=5, max_train_events=None, log_every=200, exclude_inttype=None):
     out = pathlib.Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed); np.random.seed(seed)
     t0 = time.time()
     d = load_compact(stems)
-    split = split_by_subrun(d["subrun"], seed=seed)
+    split = apply_holdout(d, split_by_subrun(d["subrun"], seed=seed), exclude_inttype)
     if max_train_events:
         tr = np.where(split == 0)[0]
         drop = np.random.default_rng(seed).permutation(tr)[max_train_events:]
@@ -78,7 +88,7 @@ def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_
         print(f"epoch {ep}: val " + " ".join(f"{k} {v:.4f}" for k, v in va.items()) + f"  total {tot:.4f}  [{rec['time']:.0f} s]", flush=True)
         if np.isfinite(tot) and tot < best:
             best = tot
-            torch.save({"model": model.state_dict(), "transform": tf.state(), "config": {"d_model": d_model, "n_layers": n_layers, "flow_hidden": flow_hidden, "flow_layers": flow_layers}}, out / "model.pt")
+            torch.save({"model": model.state_dict(), "transform": tf.state(), "config": {"d_model": d_model, "n_layers": n_layers, "flow_hidden": flow_hidden, "flow_layers": flow_layers, "exclude_inttype": list(exclude_inttype or [])}}, out / "model.pt")
     (out / "history.json").write_text(json.dumps(hist, indent=1))
     return d, split, tf, idx, ld, out
 

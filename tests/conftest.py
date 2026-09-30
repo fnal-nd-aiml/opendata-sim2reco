@@ -8,9 +8,11 @@ import uproot
 from sim2reco.io.branches import RECO_TREE_BRANCHES, TRUTH_TREE_BRANCHES
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[1]
-STEM = "MasterAnaDev_mc_AnaTuple_run00113069_Playlist"
+# any slimmed MC file with its typenames JSON serves as the fixture (playlist 1A by default)
+_cands = sorted(ROOT_DIR.glob("data/slim*/MasterAnaDev_mc_AnaTuple_run*_Playlist.reco.typenames.json"))
+STEM = _cands[0].name.replace(".reco.typenames.json", "") if _cands else "MasterAnaDev_mc_AnaTuple_run00110000_Playlist"
 ROOT_FILE = ROOT_DIR / f"{STEM}.root"
-SLIM = ROOT_DIR / "data" / "slim" / STEM
+SLIM = (_cands[0].parent if _cands else ROOT_DIR / "data" / "slim_1A") / STEM
 N_RECO = 20000
 N_TRUTH = 40000
 

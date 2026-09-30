@@ -44,10 +44,10 @@ def fit_transforms(d, split, seed):
 
 
 def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, lr=2e-4, seed=0, device="cuda",
-          prong_layers=3, log_every=500):
+          prong_layers=3, log_every=500, exclude_inttype=None):
     out = pathlib.Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed); np.random.seed(seed); t0 = time.time()
-    d = load_compact(stems); split = split_by_subrun(d["subrun"], seed=seed)
+    d = load_compact(stems); split = m2.apply_holdout(d, split_by_subrun(d["subrun"], seed=seed), exclude_inttype)
     tf, ptf = fit_transforms(d, split, seed)
     idx, ds, ld = make_loaders(d, split, tf, ptf, bs, seed)
     print(f"data: {len(split)} events, {d['p_offsets'][-1]} prongs, {len(tf.planes.z)} vertex planes, {time.time()-t0:.0f} s", flush=True)
@@ -61,7 +61,7 @@ def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, l
     steps = epochs * len(ld["train"])
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=steps, pct_start=0.05)
     hist, best, step = [], np.inf, 0
-    cfg = dict(c, tier2=True, prong_layers=prong_layers)
+    cfg = dict(c, tier2=True, prong_layers=prong_layers, exclude_inttype=list(exclude_inttype or []))
     for ep in range(epochs):
         model.train(); agg = {}
         for b in ld["train"]:

@@ -7,16 +7,23 @@ import numpy as np
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("out_dir"); ap.add_argument("--slim-dir", default="data/slim"); ap.add_argument("--n-files", type=int, default=None)
+    ap.add_argument("out_dir"); ap.add_argument("--slim-dir", default="data/slim_1A"); ap.add_argument("--n-files", type=int, default=None)
     ap.add_argument("--epochs", type=int, default=12); ap.add_argument("--bs", type=int, default=1024); ap.add_argument("--lr", type=float, default=2e-4)
-    ap.add_argument("--init", default="reports/m2/model.pt"); ap.add_argument("--eval-only", action="store_true"); ap.add_argument("--steps", type=int, default=64)
-    ap.add_argument("--m1", default="reports/m1/metrics.json"); ap.add_argument("--tier2-only", action="store_true"); ap.add_argument("--max-test", type=int, default=None)
+    ap.add_argument("--init", default="reports/m2_1A/model.pt"); ap.add_argument("--eval-only", action="store_true"); ap.add_argument("--steps", type=int, default=64)
+    ap.add_argument("--m1", default="reports/m1_1A/metrics.json"); ap.add_argument("--exclude-inttype", type=int, nargs="*", default=None, help="GENIE intType codes held out of train/val (8 = 2p2h)"); ap.add_argument("--only-inttype", type=int, nargs="*", default=None, help="evaluate only test events of these intType codes"); ap.add_argument("--tier2-only", action="store_true"); ap.add_argument("--max-test", type=int, default=None)
     a = ap.parse_args()
     from sim2reco.train import m2, m3
     from sim2reco.data.compact import load_compact
     from sim2reco.data.dataset import split_by_subrun
     stems = sorted(p[:-len(".truth.parquet")] for p in glob.glob(f"{a.slim_dir}/*.truth.parquet"))
     if a.n_files: stems = stems[:a.n_files]
+    def restrict(d, idx, ld, tf, ptf=None):
+        if not a.only_inttype: return idx, ld
+        from torch.utils.data import DataLoader
+        from sim2reco.data.compact import CompactDataset, collate
+        keep = idx["test"][np.isin(d["intType"][idx["test"]], a.only_inttype)]
+        idx = dict(idx, test=keep); ld = dict(ld, test=DataLoader(CompactDataset(d, keep, tf, 0, prong_tf=ptf), batch_size=a.bs, collate_fn=collate, num_workers=4))
+        print(f"evaluating on {len(keep):,} test events of intType {a.only_inttype}"); return idx, ld
     print(f"{len(stems)} files")
     if a.eval_only:
         d = load_compact(stems); split = split_by_subrun(d["subrun"], seed=0)
@@ -28,8 +35,9 @@ if __name__ == "__main__":
             idx["test"] = idx["test"][:a.max_test]
             ld["test"] = DataLoader(CompactDataset(d, idx["test"], tf, 0, prong_tf=ptf), batch_size=a.bs, collate_fn=collate, num_workers=4)
     else:
-        d, split, tf, ptf, idx, ld = m3.train(stems, a.out_dir, a.init, a.epochs, a.bs, a.lr)
+        d, split, tf, ptf, idx, ld = m3.train(stems, a.out_dir, a.init, a.epochs, a.bs, a.lr, exclude_inttype=a.exclude_inttype)
         model, tf, ptf = m3.load_model(pathlib.Path(a.out_dir) / "model.pt")
+    idx, ld = restrict(d, idx, ld, tf, ptf)
     m2.write_data_table(stems, d, split, a.out_dir, None if a.eval_only else a.epochs, sum(p.numel() for p in model.parameters()))
     m1 = json.load(open(a.m1)) if pathlib.Path(a.m1).exists() else None
     if a.tier2_only:
