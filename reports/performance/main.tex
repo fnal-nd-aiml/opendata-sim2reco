@@ -112,6 +112,29 @@ pairs MasterAnaDev's count with one surrogate draw for the same event (Table~\re
 reconstruction is stochastic the two draws need not coincide, and the matrix should be read as a check that the
 surrogate's count is correlated with the real one through the truth, which it is, not as an accuracy.
 
+The asymmetry of Table~\ref{tab:mult-conf} deserves a word, because it looks like a bias: events that
+MasterAnaDev reconstructed with three or more prongs are given one or two prongs by the surrogate most of the
+time, while the reverse rows are nearly diagonal. It is regression to the mean in the statistical sense. Given
+the truth $X$, the real count and the surrogate draw are two independent realisations of the same conditional
+distribution $p(N \mid X)$ if the surrogate is right; an event that happened to come out with four prongs is,
+in most cases, an event for which $p(4 \mid X)$ is small, so a second draw most probably returns to one or
+two. Row normalisation then divides very unequal row totals (207{,}947 events at $N=0$ against 99 at $N \ge 6$)
+and produces the asymmetric appearance. Two checks confirm this reading (Fig.~\ref{fig:conf-sym}). First, if the
+two draws are exchangeable the \emph{joint} matrix must be symmetric, and it is: the largest asymmetry
+$|J_{ij} - J_{ji}|$ is 0.0011 against a largest entry of 0.275. Second, two independent surrogate draws
+for the same events give a row-normalised matrix with the same asymmetry as MasterAnaDev-versus-surrogate,
+to within 0.01 in every populated cell; MasterAnaDev re-run with a different random seed would produce the same
+picture against itself. The generative model is therefore expected to agree distribution by distribution and
+conditional by conditional, which it does (Fig.~\ref{fig:mult-conf}, left and centre), and not event by event.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../m3/figures/m3_confusion_symmetry.png}
+\caption{Why the event-by-event matrix is asymmetric. Left: MasterAnaDev versus one surrogate draw,
+row-normalised. Centre: two independent surrogate draws for the same events, row-normalised, showing the same
+asymmetry. Right: the joint (unnormalised) MasterAnaDev-versus-surrogate matrix, symmetric to 0.0011.}
+\label{fig:conf-sym}
+\end{figure}
+
 \begin{table}[h]\centering
 \input{../m3/tables/tier0.tex}
 \caption{Binary heads: test log loss (lower is better) and AUC for the marginal predictor, the tree baseline on
