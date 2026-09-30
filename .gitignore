@@ -16,3 +16,4 @@ outputs/
 *.log
 reports/*/model.pt
 reports/*/train.log
+reports/*/confusion_two_draws.npz
