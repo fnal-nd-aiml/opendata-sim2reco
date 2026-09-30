@@ -184,8 +184,7 @@ carries the plane-snapping structure discussed in Section~\ref{sec:vertex}. Figu
 calorimetric energies, including the populations at exactly zero energy reproduced by dequantisation, and the
 two derived branches. Figure~\ref{fig:cond} tests the conditional behaviour: the muon response versus true
 momentum and the recoil energy versus true hadronic kinetic energy follow MasterAnaDev in median and 16--84\%
-band over the full range, with one exception, the 1--1.5\,GeV muon bin (15,547 events, 3\% of the sample,
-dominated by unmatched muons) where the medians differ by 0.0 standardised units.
+band over the full range.
 Figure~\ref{fig:corr} compares the correlation matrices of the nine variables; the largest difference in any
 coefficient is 0.005.
 
@@ -376,8 +375,6 @@ truth features added.}
   widths of about 3\% and 10\%). Analyses that depend on that scatter should use \texttt{recoil\_E}.
 \item \textbf{No truth-matched prongs.} The tuple's per-prong truth match is used only to validate the training
   data. A per-prong pointer head over the particle tokens would provide it.
-\item \textbf{Low-momentum unmatched muons.} In the 1--1.5\,GeV bin the median response differs from
-  MasterAnaDev (Fig.~\ref{fig:cond}).
 \item \textbf{Scope.} CC~$\nu_\mu$, ME FHC, true vertex $z \ge 4000$\,mm, one training seed, and in-distribution
   validation only. Extrapolation to final states outside the training phase space is the subject of the next
   study and is not tested here.
