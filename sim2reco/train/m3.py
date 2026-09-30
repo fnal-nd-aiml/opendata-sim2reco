@@ -192,9 +192,9 @@ def _confusion_figure(M, fdir, tdir):
         C = np.asarray(C, float); return C / np.clip(C.sum(1, keepdims=True), 1, None)
     mats = []
     if "confusion_true_charged_vs_reco" in M:
-        mats += [(rownorm(M["confusion_true_charged_vs_reco"]["masteranadev"]), "MasterAnaDev", "true charged hadrons after FSI"),
+        mats += [(rownorm(M["confusion_true_charged_vs_reco"]["masteranadev"]), plots.REAL_LABEL, "true charged hadrons after FSI"),
                  (rownorm(M["confusion_true_charged_vs_reco"]["surrogate"]), "surrogate", "true charged hadrons after FSI")]
-    mats.append((rownorm(M["confusion_event_by_event"]), "event by event", "MasterAnaDev reco prongs"))
+    mats.append((rownorm(M["confusion_event_by_event"]), "event by event", f"{plots.REAL_LABEL} reco prongs"))
     fig, axs = plt.subplots(1, len(mats), figsize=(3.9 * len(mats), 3.6))
     labels = [str(k) for k in range(6)] + ["6+"]
     for ax, (C, title, ylab) in zip(np.atleast_1d(axs), mats):
@@ -206,6 +206,17 @@ def _confusion_figure(M, fdir, tdir):
         ax.set_xlabel("reco prongs" if "event" not in title else "surrogate reco prongs", fontsize=9); ax.set_ylabel(ylab, fontsize=9); ax.set_title(title, fontsize=10, loc="left")
     fig.colorbar(im, ax=np.atleast_1d(axs).tolist(), shrink=0.8, label="row fraction")
     fig.savefig(fdir / "m3_multiplicity_confusion.png", dpi=150, bbox_inches="tight"); plt.close(fig)
+    if len(mats) == 3:  # truth-conditioned pair only (paper figure)
+        fig, axs = plt.subplots(1, 2, figsize=(7.8, 3.6))
+        for ax, (C, title, ylab) in zip(axs, mats[:2]):
+            im = ax.imshow(C, vmin=0, vmax=1, cmap="Blues", origin="lower")
+            for i in range(C.shape[0]):
+                for j in range(C.shape[1]):
+                    if C[i, j] >= 0.005: ax.text(j, i, f"{C[i,j]:.2f}", ha="center", va="center", fontsize=6.5, color="white" if C[i, j] > 0.6 else "black")
+            ax.set_xticks(range(7)); ax.set_yticks(range(7)); ax.set_xticklabels(labels, fontsize=8); ax.set_yticklabels(labels, fontsize=8); ax.grid(False)
+            ax.set_xlabel("reco prongs", fontsize=9); ax.set_ylabel(ylab, fontsize=9); ax.set_title(title, fontsize=10, loc="left")
+        fig.colorbar(im, ax=axs.tolist(), shrink=0.8, label="row fraction")
+        fig.savefig(fdir / "m3_multiplicity_confusion_truth.png", dpi=150, bbox_inches="tight"); plt.close(fig)
     # LaTeX table of the event-by-event confusion (row-normalised)
     C = rownorm(M["confusion_event_by_event"]); tot = np.asarray(M["confusion_event_by_event"]).sum(1)
     hdr = " & ".join(labels)
@@ -247,13 +258,13 @@ def _pid_validation(nch, lead_cls, Pr, Pf, offr, offf, fdir, tdir):
     out["score_auc_p_vs_pi"] = [float(auc_r), float(auc_f)]
     fig, axs = plt.subplots(1, 3, figsize=(12, 3.6), gridspec_kw={"width_ratios": [1.15, 1.15, 1]})
     keep = [i for i in range(len(PID_SPECIES)) if nr[i] > 0]
-    for ax, Mx, title in ((axs[0], Mr[keep], "MasterAnaDev"), (axs[1], Mf[keep], "surrogate")):
+    for ax, Mx, title in ((axs[0], Mr[keep], plots.REAL_LABEL), (axs[1], Mf[keep], "surrogate")):
         im = ax.imshow(Mx, vmin=0, vmax=1, cmap="Blues", origin="lower", aspect="auto")
         for i in range(Mx.shape[0]):
             for j in range(Mx.shape[1]): ax.text(j, i, f"{Mx[i,j]:.2f}", ha="center", va="center", fontsize=8, color="white" if Mx[i, j] > 0.6 else "black")
         ax.set_xticks(range(4)); ax.set_xticklabels(PID_CATS, fontsize=7, rotation=20, ha="right"); ax.set_yticks(range(len(keep))); ax.set_yticklabels([PID_SPECIES[i][1] for i in keep], fontsize=9)
         ax.set_ylabel("true hadron species", fontsize=9); ax.set_title(title, fontsize=10, loc="left"); ax.grid(False)
-    axs[2].plot(fpr_r, tpr_r, color=plots.PALETTE["real"], label=f"MasterAnaDev, AUC {auc_r:.3f}"); axs[2].plot(fpr_f, tpr_f, "--", color=plots.PALETTE["model"], label=f"surrogate, AUC {auc_f:.3f}")
+    axs[2].plot(fpr_r, tpr_r, color=plots.PALETTE["real"], label=f"{plots.REAL_LABEL}, AUC {auc_r:.3f}"); axs[2].plot(fpr_f, tpr_f, "--", color=plots.PALETTE["model"], label=f"surrogate, AUC {auc_f:.3f}")
     axs[2].plot([0, 1], [0, 1], ":", color="gray", lw=1); axs[2].set_xlabel("pion prongs accepted"); axs[2].set_ylabel("proton prongs accepted"); axs[2].legend(frameon=False, fontsize=8); axs[2].set_title("proton score ROC, p vs $\\pi^\\pm$", fontsize=10, loc="left")
     fig.savefig(fdir / "m3_pid_species.png", dpi=150, bbox_inches="tight"); plt.close(fig)
     rows = []
@@ -277,7 +288,7 @@ def _profile(ax, x, yr, yf, edges, ylabel, xlabel, log=True, frac=False):
             a = yr[s][np.isfinite(yr[s])]; b = yf[s][np.isfinite(yf[s])]
             qa = np.percentile(a, [16, 50, 84]) if len(a) > 20 else [np.nan] * 3; qb = np.percentile(b, [16, 50, 84]) if len(b) > 20 else [np.nan] * 3
             mr.append(qa[1]); lr.append(qa[0]); hr.append(qa[2]); mf.append(qb[1]); lf.append(qb[0]); hf.append(qb[2])
-    ax.plot(xs, mr, "o-", color=plots.PALETTE["real"], ms=4, label="MasterAnaDev"); ax.plot(xs, mf, "s--", color=plots.PALETTE["model"], ms=4, label="surrogate")
+    ax.plot(xs, mr, "o-", color=plots.PALETTE["real"], ms=4, label=plots.REAL_LABEL); ax.plot(xs, mf, "s--", color=plots.PALETTE["model"], ms=4, label="surrogate")
     if not frac:
         ax.fill_between(xs, lr, hr, color=plots.PALETTE["real"], alpha=0.15); ax.fill_between(xs, lf, hf, color=plots.PALETTE["model"], alpha=0.15)
     if log: ax.set_xscale("log")
@@ -298,9 +309,9 @@ def _prong_validation(ke, lead_pP_r, lead_pP_f, Er, Ef, nch, lead_cls, Pr, Pf, p
             s = nch == k
             if s.sum() > 100: rows.append((k, Er[s, 1].mean(), Ef[s, 1].mean(), Er[s, 0].mean(), Ef[s, 0].mean(), int(s.sum())))
         out["prongs_vs_true_charged"] = rows
-        axs[2].plot([r[0] for r in rows], [r[3] for r in rows], "o-", color=plots.PALETTE["real"], ms=4, label="MasterAnaDev, all prongs")
+        axs[2].plot([r[0] for r in rows], [r[3] for r in rows], "o-", color=plots.PALETTE["real"], ms=4, label=f"{plots.REAL_LABEL}, all prongs")
         axs[2].plot([r[0] for r in rows], [r[4] for r in rows], "s--", color=plots.PALETTE["model"], ms=4, label="surrogate, all prongs")
-        axs[2].plot([r[0] for r in rows], [r[1] for r in rows], "o-", color=plots.PALETTE["third"], ms=4, label="MasterAnaDev, with kinematics")
+        axs[2].plot([r[0] for r in rows], [r[1] for r in rows], "o-", color=plots.PALETTE["third"], ms=4, label=f"{plots.REAL_LABEL}, with kinematics")
         axs[2].plot([r[0] for r in rows], [r[2] for r in rows], "s--", color=plots.PALETTE["fourth"], ms=4, label="surrogate, with kinematics")
         axs[2].set_xlabel("true charged hadrons (p, pi, K) after FSI"); axs[2].set_ylabel("mean reco prongs per event"); axs[2].legend(frameon=False, fontsize=7)
     plots.save(fig, fdir / "m3_prong_conditionals.png")
@@ -316,8 +327,8 @@ def _prong_validation(ke, lead_pP_r, lead_pP_f, Er, Ef, nch, lead_cls, Pr, Pf, p
     axs[0].hist(Pf[pf_f & is_pi_f, 6], bins=b, histtype="step", color=plots.PALETTE["fourth"], density=True, ls="--", label=r"surrogate, leading true $\pi^\pm$")
     axs[0].set_xlabel("proton score1 of prongs with a proton fit"); axs[0].set_ylabel("density"); axs[0].legend(frameon=False, fontsize=7)
     kin_r, kin_f = Pr[:, 2] > 0.5, Pf[:, 2] > 0.5
-    plots.hist_compare(axs[1], Pr[kin_r & (Pr[:, 3] > 0), 3], Pf[kin_f, 3], np.linspace(0, 1500, 60), "pion-hypothesis P [MeV]", ("MasterAnaDev", "surrogate"))
-    plots.hist_compare(axs[2], np.degrees(Pr[kin_r, 0]), np.degrees(Pf[kin_f, 0]), np.linspace(0, 180, 60), "prong angle to beam [deg]", ("MasterAnaDev", "surrogate")); axs[2].set_yscale("log")
+    plots.hist_compare(axs[1], Pr[kin_r & (Pr[:, 3] > 0), 3], Pf[kin_f, 3], np.linspace(0, 1500, 60), "pion-hypothesis P [MeV]", (plots.REAL_LABEL, "surrogate"))
+    plots.hist_compare(axs[2], np.degrees(Pr[kin_r, 0]), np.degrees(Pf[kin_f, 0]), np.linspace(0, 180, 60), "prong angle to beam [deg]", (plots.REAL_LABEL, "surrogate")); axs[2].set_yscale("log")
     plots.save(fig, fdir / "m3_prong_pid.png")
     out["score_medians"] = {"lead_p_real": float(np.median(Pr[pf_r & is_p_r, 6])), "lead_p_fake": float(np.median(Pf[pf_f & is_p_f, 6])),
                             "lead_pi_real": float(np.median(Pr[pf_r & is_pi_r, 6])), "lead_pi_fake": float(np.median(Pf[pf_f & is_pi_f, 6]))}
@@ -326,18 +337,18 @@ def _prong_validation(ke, lead_pP_r, lead_pP_f, Er, Ef, nch, lead_cls, Pr, Pf, p
 
 def _figures(M, Pr, Pf, kr, kf, pr, pf, Er, Ef, offr, offf, fdir):
     fig, axs = plots.plt.subplots(1, 4, figsize=(14, 3.2))
-    plots.hist_compare(axs[0], Pr[kr, 0], Pf[kf, 0], np.linspace(0, 3.2, 64), "prong theta (beam frame) [rad]", ("MasterAnaDev", "surrogate"))
-    plots.hist_compare(axs[1], np.log(Pr[kr & (Pr[:, 3] > 0), 3]), np.log(Pf[kf, 3]), np.linspace(3.5, 8.5, 64), "log pion-hypothesis P [MeV]", ("MasterAnaDev", "surrogate"))
-    plots.hist_compare(axs[2], np.log(Pr[pr, 5]), np.log(Pf[pf, 5]), np.linspace(5, 8.5, 64), "log proton-hypothesis P [MeV]", ("MasterAnaDev", "surrogate"))
-    plots.hist_compare(axs[3], Pr[pr, 6], Pf[pf, 6], np.linspace(0, 1, 50), "proton score1", ("MasterAnaDev", "surrogate"))
+    plots.hist_compare(axs[0], Pr[kr, 0], Pf[kf, 0], np.linspace(0, 3.2, 64), "prong theta (beam frame) [rad]", (plots.REAL_LABEL, "surrogate"))
+    plots.hist_compare(axs[1], np.log(Pr[kr & (Pr[:, 3] > 0), 3]), np.log(Pf[kf, 3]), np.linspace(3.5, 8.5, 64), "log pion-hypothesis P [MeV]", (plots.REAL_LABEL, "surrogate"))
+    plots.hist_compare(axs[2], np.log(Pr[pr, 5]), np.log(Pf[pf, 5]), np.linspace(5, 8.5, 64), "log proton-hypothesis P [MeV]", (plots.REAL_LABEL, "surrogate"))
+    plots.hist_compare(axs[3], Pr[pr, 6], Pf[pf, 6], np.linspace(0, 1, 50), "proton score1", (plots.REAL_LABEL, "surrogate"))
     plots.save(fig, fdir / "m3_prongs.png")
     fig, axs = plots.plt.subplots(1, 3, figsize=(11, 3.2))
     for ax, j, nm in ((axs[0], 1, "prongs with kinematics per event"), (axs[1], 2, "proton fits per event"), (axs[2], 3, "exiting prongs per event")):
-        plots.bar_compare(ax, np.bincount(Er[:, j].astype(int), minlength=6)[:6], np.bincount(Ef[:, j].astype(int), minlength=6)[:6], nm, ("MasterAnaDev", "surrogate"))
+        plots.bar_compare(ax, np.bincount(Er[:, j].astype(int), minlength=6)[:6], np.bincount(Ef[:, j].astype(int), minlength=6)[:6], nm, (plots.REAL_LABEL, "surrogate"))
     plots.save(fig, fdir / "m3_prong_event.png")
     fig, axs = plots.plt.subplots(1, 2, figsize=(7.5, 3.2))
-    plots.hist_compare(axs[0], offr, offf, np.linspace(-15, 15, 121), "reco vertex z - nearest plane [mm]", ("MasterAnaDev", "surrogate")); axs[0].set_yscale("log")
-    plots.bar_compare(axs[1], np.array(M["vertex_class"]["marginal_real"]), np.array(M["vertex_class"]["marginal_sampled"]), "vertex class (0 unsnapped, 4 nearest plane, 8 far plane)", ("MasterAnaDev", "surrogate"))
+    plots.hist_compare(axs[0], offr, offf, np.linspace(-15, 15, 121), "reco vertex z - nearest plane [mm]", (plots.REAL_LABEL, "surrogate")); axs[0].set_yscale("log")
+    plots.bar_compare(axs[1], np.array(M["vertex_class"]["marginal_real"]), np.array(M["vertex_class"]["marginal_sampled"]), "vertex class (0 unsnapped, 4 nearest plane, 8 far plane)", (plots.REAL_LABEL, "surrogate"))
     plots.save(fig, fdir / "m3_vertex.png")
 
 

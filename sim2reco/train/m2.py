@@ -230,33 +230,33 @@ def _by_bin(x, real, fake, edges):
 
 def _figures(M, xr, xf, yr, yf, mm, sm, fdir):
     fig, axs = plots.plt.subplots(1, 3, figsize=(11, 3.2))
-    plots.hist_compare(axs[0], xr[mm, 0], xf[sm, 0], np.linspace(-5, 5, 80), "log(P_reco/P_true) [model space], MINOS matched", ("MasterAnaDev", "surrogate"))
-    plots.hist_compare(axs[1], xr[~mm, 0], xf[~sm, 0], np.linspace(-8, 8, 80), "log(P_reco/P_true) [model space], not matched", ("MasterAnaDev", "surrogate")); axs[1].set_yscale("log")
-    plots.hist_compare(axs[2], xr[:, 1], xf[:, 1], np.linspace(-8, 8, 80), "dtheta_x [model space]", ("MasterAnaDev", "surrogate")); axs[2].set_yscale("log")
+    plots.hist_compare(axs[0], xr[mm, 0], xf[sm, 0], np.linspace(-5, 5, 80), "log(P_reco/P_true) [model space], MINOS matched", (plots.REAL_LABEL, "surrogate"))
+    plots.hist_compare(axs[1], xr[~mm, 0], xf[~sm, 0], np.linspace(-8, 8, 80), "log(P_reco/P_true) [model space], not matched", (plots.REAL_LABEL, "surrogate")); axs[1].set_yscale("log")
+    plots.hist_compare(axs[2], xr[:, 1], xf[:, 1], np.linspace(-8, 8, 80), "dtheta_x [model space]", (plots.REAL_LABEL, "surrogate")); axs[2].set_yscale("log")
     plots.save(fig, fdir / "tier1_muon.png")
     fig, axs = plots.plt.subplots(1, 3, figsize=(11, 3.2))
     for j, (ax, nm) in enumerate(zip(axs, ["dvtx_x", "dvtx_y", "dvtx_z"])):
-        plots.hist_compare(ax, xr[:, 3 + j], xf[:, 3 + j], np.linspace(-8, 8, 80), f"{nm} [model space]", ("MasterAnaDev", "surrogate")); ax.set_yscale("log")
+        plots.hist_compare(ax, xr[:, 3 + j], xf[:, 3 + j], np.linspace(-8, 8, 80), f"{nm} [model space]", (plots.REAL_LABEL, "surrogate")); ax.set_yscale("log")
     plots.save(fig, fdir / "tier1_vertex.png")
     fig, axs = plots.plt.subplots(1, 5, figsize=(16, 3.0))
     for ax, j in zip(axs, (6, 9, 10, 7, 8)):
         nm = TIER1_NAMES[j] + (" (derived)" if j in (7, 8) else "")
-        plots.hist_compare(ax, np.log(yr[:, j] + 1), np.log(yf[:, j] + 1), np.linspace(0, 12, 60), f"log({nm}+1)", ("MasterAnaDev", "surrogate"))
+        plots.hist_compare(ax, np.log(yr[:, j] + 1), np.log(yf[:, j] + 1), np.linspace(0, 12, 60), f"log({nm}+1)", (plots.REAL_LABEL, "surrogate"))
     plots.save(fig, fdir / "tier1_calorimetry.png")
     fig, axs = plots.plt.subplots(1, 2, figsize=(8, 3.4))
-    im = axs[0].imshow(np.array(M["corr_real"]), vmin=-1, vmax=1, cmap="RdBu_r"); axs[0].set_title("MasterAnaDev correlations", fontsize=9)
+    im = axs[0].imshow(np.array(M["corr_real"]), vmin=-1, vmax=1, cmap="RdBu_r"); axs[0].set_title(f"{plots.REAL_LABEL} correlations", fontsize=9)
     axs[1].imshow(np.array(M["corr_fake"]), vmin=-1, vmax=1, cmap="RdBu_r"); axs[1].set_title("surrogate correlations", fontsize=9)
     k = len(MODEL_NAMES)
     for ax in axs: ax.set_xticks(range(k)); ax.set_yticks(range(k)); ax.set_xticklabels(range(k), fontsize=7); ax.set_yticklabels(range(k), fontsize=7); ax.grid(False)
     fig.colorbar(im, ax=axs, shrink=0.8); fig.savefig(fdir / "tier1_correlations.png", dpi=150); plots.plt.close(fig)
     fig, axs = plots.plt.subplots(1, 2, figsize=(7.5, 3.2))
-    plots.bar_compare(axs[0], np.array(M["multiplicity"]["marginal_true"]), np.array(M["multiplicity"]["marginal_sampled"]), "reco hadron prongs", ("MasterAnaDev", "surrogate"))
+    plots.bar_compare(axs[0], np.array(M["multiplicity"]["marginal_true"]), np.array(M["multiplicity"]["marginal_sampled"]), "reco hadron prongs", (plots.REAL_LABEL, "surrogate"))
     plots.calibration_panel(axs[1], M["eff_calibration_nhad"], "true hadrons after cuts"); axs[1].set_title("P(reco exists)", fontsize=9, loc="left")
     plots.save(fig, fdir / "heads_multiplicity_eff.png")
     fig, axs = plots.plt.subplots(1, 2, figsize=(7.5, 3.2))
     for ax, rows, xl, log in ((axs[0], M["muon_resp_by_P"], "true muon momentum [GeV]", True), (axs[1], M["recoil_by_sumKE"], "true hadronic KE [MeV]", True)):
         x = [(r["lo"] + r["hi"]) / 2 for r in rows]
-        for k, (key, c, lab, ls) in enumerate((("real_q16_50_84", plots.PALETTE["real"], "MasterAnaDev", "o-"), ("fake_q16_50_84", plots.PALETTE["model"], "surrogate", "s--"))):
+        for k, (key, c, lab, ls) in enumerate((("real_q16_50_84", plots.PALETTE["real"], plots.REAL_LABEL, "o-"), ("fake_q16_50_84", plots.PALETTE["model"], "surrogate", "s--"))):
             ax.plot(x, [r[key][1] for r in rows], ls, color=c, ms=4, label=lab); ax.fill_between(x, [r[key][0] for r in rows], [r[key][2] for r in rows], color=c, alpha=0.15)
         ax.set_xscale("log"); ax.set_xlabel(xl); ax.legend(frameon=False)
     axs[0].set_ylabel("log P ratio [model space]"); axs[1].set_ylabel("log recoil_E [model space]")
