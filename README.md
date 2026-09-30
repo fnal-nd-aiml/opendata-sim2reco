@@ -25,7 +25,9 @@ python scripts/dataset_summary.py data/slim/MasterAnaDev_mc_AnaTuple_run00113069
 python scripts/run_m1.py data/slim/MasterAnaDev_mc_AnaTuple_run00113069_Playlist reports/m1   # baselines, ~1 min on a GPU
 python scripts/run_m2.py reports/m2 --epochs 30                                         # surrogate, ~2 h on an RTX 3090, all files in data/slim
 python scripts/run_m3.py reports/m3 --epochs 12 --init reports/m2/model.pt                 # prong model, warm start from M2
-python scripts/surrogate_to_ntuple.py reports/m3 data/slim/<stem>.truth.parquet out.root  # truth -> full pruned MasterAnaDev ntuple
+python scripts/surrogate_to_ntuple.py reports/m3 data/slim/<stem>.truth.parquet out.root  # truth -> pruned MasterAnaDev ntuple (80 branches)
+python scripts/conform_ntuple.py out.root MasterAnaDev_data_AnaTuple_run00010255_Playlist.root out_full.root --strict
+                                                           # optional: full 3,687-branch schema + Meta tree, unmodelled branches at their sentinel defaults
 pytest -q                                                  # round-trip tests (ROOT file or its slimmed Parquet)
 (cd reports/performance && tectonic -X compile main.tex)   # performance report PDF
 ```

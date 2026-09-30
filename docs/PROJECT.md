@@ -412,6 +412,11 @@ empty prong slots, `_sz = 0` for empty jagged branches.
 Branches that are constant or unfilled in this sample (`blob_ccqe_recoil_E`, `EMLikeTrackMultiplicity`,
 `improved_*` michel arrays, pi0/gamma blocks) are left out of v1.
 
+**Full-schema output.** The surrogate writes only the branches it models (80). `scripts/conform_ntuple.py` adds
+every other branch of a reference AnaTuple, filled with that branch's sentinel default as observed in the reference
+(empty lists for jagged branches, with the reference's own counter names), and a `Meta` tree, so code that binds the
+whole tuple runs unchanged. Those added branches carry no information and must not be read as predictions.
+
 ## 14. Remaining definitions (resolved 2026-09-23 unless marked open)
 
 1. **Angles.** Not a separate definition: the interface carries `(px, py, pz)` and vertex `(x, y, z)`; angles
