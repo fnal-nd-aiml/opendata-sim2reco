@@ -28,11 +28,13 @@ PDG_MASS = {
 }
 
 # Species classes for the model input (docs/PROJECT.md 13.1 step 4). 0 is reserved for padding.
-CLASS_NAMES = ["pad", "mu-", "e", "gamma", "p", "pi+", "pi-", "pi0", "K+-", "K0", "hyperon", "other"]
+CLASS_NAMES = ["pad", "mu-", "e", "gamma", "p", "pi+", "pi-", "pi0", "K+-", "K0", "hyperon", "other", "n"]
+NEUTRON_CLASS = 12  # only used when neutrons are admitted as input tokens (variant study, 2026-10-01)
 PDG_CLASS = {
     13: 1, 11: 2, -11: 2, 22: 3, 2212: 4, 211: 5, -211: 6, 111: 7,
     321: 8, -321: 8, 311: 9, -311: 9, 130: 9, 310: 9,
     3122: 10, 3222: 10, 3212: 10, 3112: 10, 3322: 10, 3312: 10, 3334: 10,
+    2112: 12,
 }
 N_CLASSES = len(CLASS_NAMES)
 

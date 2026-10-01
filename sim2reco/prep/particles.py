@@ -10,8 +10,8 @@ import numpy as np
 from ..constants import PDG_CLASS, PDG_MASS
 
 DEFAULT_KE_CUT_MEV = 50.0
-DROP_PDG_ABS = {12, 14, 16, 2112}          # neutrinos and neutrons
-HADRON_CLASSES = {4, 5, 6, 7, 8, 9, 10}    # p, pi+, pi-, pi0, K+-, K0, hyperon: KE cut applies
+DROP_PDG_ABS = {12, 14, 16}                 # neutrinos (always); neutrons are dropped unless keep_neutrons
+HADRON_CLASSES = {4, 5, 6, 7, 8, 9, 10, 12} # p, pi+, pi-, pi0, K+-, K0, hyperon, n: KE cut applies
 OTHER_CLASS = 11
 
 
@@ -45,14 +45,17 @@ def pdg_to_mass(pdg):
     return out
 
 
-def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV) -> ak.Array:
+def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = False) -> ak.Array:
     """Apply the 13.1 selection and return a record array {cls, px, py, pz} per event.
 
-    Steps: drop neutrinos, GENIE pseudo-particles (2000000101), nuclear remnants (pdg > 1e9) and neutrons;
-    drop hadrons with KE < ke_cut_mev; map pdg -> class. Leptons and photons are never KE-cut.
+    Steps: drop neutrinos, GENIE pseudo-particles (2000000101), nuclear remnants (pdg > 1e9) and, unless
+    keep_neutrons, neutrons; drop hadrons (neutrons included when kept) with KE < ke_cut_mev; map pdg -> class.
+    Leptons and photons are never KE-cut.
     """
     apdg = abs(pdg)
     keep = ~_isin(apdg, sorted(DROP_PDG_ABS)) & (pdg != 2000000101) & (apdg < 1_000_000_000)
+    if not keep_neutrons:
+        keep = keep & (pdg != 2112)
     cls = pdg_to_class(pdg)
     ke = E - pdg_to_mass(pdg)
     is_had = _isin(cls, sorted(HADRON_CLASSES))
@@ -60,10 +63,10 @@ def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV)
     return ak.zip({"cls": cls[keep], "px": px[keep], "py": py[keep], "pz": pz[keep]})
 
 
-def select_from_tuple(events: ak.Array, ke_cut_mev: float = DEFAULT_KE_CUT_MEV) -> ak.Array:
+def select_from_tuple(events: ak.Array, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = False) -> ak.Array:
     """Convenience wrapper on slimmed tuple arrays (mc_FSPart* branches)."""
     return select_particles(events["mc_FSPartPDG"], events["mc_FSPartPx"], events["mc_FSPartPy"],
-                            events["mc_FSPartPz"], events["mc_FSPartE"], ke_cut_mev)
+                            events["mc_FSPartPz"], events["mc_FSPartE"], ke_cut_mev, keep_neutrons)
 
 
 def context_from_tuple(events: ak.Array) -> np.ndarray:

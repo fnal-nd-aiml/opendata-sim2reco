@@ -10,6 +10,7 @@ if __name__ == "__main__":
     ap.add_argument("out_dir"); ap.add_argument("--stems", nargs="*", default=None); ap.add_argument("--slim-dir", default="data/slim_1A")
     ap.add_argument("--epochs", type=int, default=20); ap.add_argument("--bs", type=int, default=1024); ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--max-train", type=int, default=None); ap.add_argument("--eval-only", action="store_true"); ap.add_argument("--m1", default="reports/m1_1A/metrics.json"); ap.add_argument("--exclude-inttype", type=int, nargs="*", default=None, help="GENIE intType codes held out of train/val (8 = 2p2h)"); ap.add_argument("--only-inttype", type=int, nargs="*", default=None, help="evaluate only test events of these intType codes")
+    ap.add_argument("--ke-cut", type=float, default=50.0, help="hadron KE threshold [MeV] for input tokens"); ap.add_argument("--neutrons", action="store_true", help="admit neutrons as input tokens")
     ap.add_argument("--d-model", type=int, default=128); ap.add_argument("--n-layers", type=int, default=4); ap.add_argument("--n-files", type=int, default=None)
     ap.add_argument("--flow-hidden", type=int, default=768); ap.add_argument("--flow-layers", type=int, default=5); ap.add_argument("--steps", type=int, default=100)
     a = ap.parse_args()
@@ -27,11 +28,13 @@ if __name__ == "__main__":
         print(f"evaluating on {len(keep):,} test events of intType {a.only_inttype}"); return idx, ld
     print(f"{len(stems)} files")
     if a.eval_only:
-        d = load_compact(stems); split = split_by_subrun(d["subrun"], seed=0)
+        import torch
+        c = torch.load(pathlib.Path(a.out_dir) / "model.pt", map_location="cpu", weights_only=False)["config"]
+        d = load_compact(stems, ke_cut_mev=c.get("ke_cut_mev", 50.0), keep_neutrons=c.get("keep_neutrons", False)); split = split_by_subrun(d["subrun"], seed=0)
         model, tf = load_model(pathlib.Path(a.out_dir) / "model.pt")
         idx, ds, ld = make_loaders(d, split, tf, a.bs, 0)
     else:
-        d, split, tf, idx, ld, out = train(stems, a.out_dir, a.epochs, a.bs, a.lr, 0, "cuda", a.d_model, a.n_layers, a.flow_hidden, a.flow_layers, max_train_events=a.max_train, exclude_inttype=a.exclude_inttype)
+        d, split, tf, idx, ld, out = train(stems, a.out_dir, a.epochs, a.bs, a.lr, 0, "cuda", a.d_model, a.n_layers, a.flow_hidden, a.flow_layers, max_train_events=a.max_train, exclude_inttype=a.exclude_inttype, ke_cut_mev=a.ke_cut, keep_neutrons=a.neutrons)
         model, tf = load_model(pathlib.Path(a.out_dir) / "model.pt")
     idx, ld = restrict(d, idx, ld, tf)
     m1 = json.load(open(a.m1)) if pathlib.Path(a.m1).exists() else None

@@ -11,7 +11,7 @@ from ..constants import CLASS_NAMES, M_MU, N_CLASSES
 from .frames import theta_phi_beam
 
 _MASS_OF_CLASS = np.array([0.0, M_MU, 0.511, 0.0, 938.272, 139.570, 139.570, 134.977, 493.677, 497.611,
-                           1115.683, 0.0])
+                           1115.683, 0.0, 939.565])
 
 
 def class_mass(cls: np.ndarray) -> np.ndarray:

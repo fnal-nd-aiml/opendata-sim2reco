@@ -27,6 +27,12 @@ def test_round_trip_exact(reco):
     sentinel = (ak.to_numpy(reco["MasterAnaDev_pion_E"]) == 0) & (ak.to_numpy(reco["MasterAnaDev_pion_P"]) > 0)
     psent = (ak.to_numpy(reco["MasterAnaDev_proton_E_fromdEdx"]) == 0) & (ak.to_numpy(reco["MasterAnaDev_proton_P_fromdEdx"]) > 0)
     ssent = ak.to_numpy(ak.sum(reco["MasterAnaDev_sec_protons_E_fromdEdx"] == 0, axis=1)) > 0
+    # secondary protons whose theta matches no prong (corrupt rows, dropped by the encoder with a warning)
+    th = ak.to_numpy(reco["MasterAnaDev_pion_theta"]); hn = ak.to_numpy(reco["MasterAnaDev_hadron_number"])
+    sth = reco["MasterAnaDev_sec_protons_theta_fromdEdx"]
+    for e in np.where(ak.to_numpy(ak.num(sth)) > 0)[0]:
+        for t in sth[e]:
+            if hn[e] == 0 or np.abs(th[e, :hn[e]] - t).min() >= 1e-6: ssent[e] = True
     print(f"\nsentinel slots excluded: pion {sentinel.sum()}, primary proton {psent.sum()}, events with sec-proton sentinel {ssent.sum()}")
     for k, v in out.items():
         if isinstance(v, ak.Array):

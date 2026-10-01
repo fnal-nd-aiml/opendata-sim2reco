@@ -25,8 +25,8 @@ PASSTHROUGH = ["mc_run", "mc_subrun", "mc_nthEvtInFile", "eventID", "mc_vtx", "m
                "mc_incoming", "mc_current", "mc_intType"]
 
 
-def truth_to_compact(truth):
-    parts = select_from_tuple(truth); n = ak.to_numpy(ak.num(parts["cls"])).astype(np.int32)
+def truth_to_compact(truth, ke_cut_mev=50.0, keep_neutrons=False):
+    parts = select_from_tuple(truth, ke_cut_mev, keep_neutrons); n = ak.to_numpy(ak.num(parts["cls"])).astype(np.int32)
     pdg = truth["mc_FSPartPDG"]; mu = pdg == 13
     Pmu = np.sqrt(truth["mc_FSPartPx"] ** 2 + truth["mc_FSPartPy"] ** 2 + truth["mc_FSPartPz"] ** 2)
     lead = ak.argmax(ak.where(mu, Pmu, -1.0), axis=1, keepdims=True)
@@ -50,9 +50,9 @@ def main():
     truth = ak.from_parquet(a.truth)
     truth = truth[in_training_population(truth)]
     if a.n: truth = truth[:a.n]
-    d = truth_to_compact(truth)
     ck = torch.load(pathlib.Path(a.model_dir) / "model.pt", map_location="cpu", weights_only=False)
     tier2 = ck["config"].get("tier2", False)
+    d = truth_to_compact(truth, ck["config"].get("ke_cut_mev", 50.0), ck["config"].get("keep_neutrons", False))
     if tier2:
         model, tf, ptf = m3.load_model(pathlib.Path(a.model_dir) / "model.pt")
     else:

@@ -78,8 +78,16 @@ def encode(ev: ak.Array) -> ak.Array:
             import warnings
             warnings.warn(f"{bad.sum()} secondary protons did not match a prong by theta; dropped")
         good = ~bad
-        p_P[ev_idx[good], j2[good]] = f_P[good]
-        p_sc[ev_idx[good], j2[good]] = f_sc[good]
+        # a prong may already hold a proton fit (duplicate prongs at identical theta occur): assign greedily to
+        # the first free prong with the same theta instead of overwriting
+        for i in np.where(good)[0]:
+            e, j = ev_idx[i], j2[i]
+            if p_P[e, j] > 0:
+                cands = np.where(valid[e] & (np.abs(th[e] - f_th[i]) < _THETA_TOL) & (p_P[e] <= 0))[0]
+                if len(cands) == 0:
+                    continue  # genuinely redundant entry
+                j = cands[0]
+            p_P[e, j] = f_P[i]; p_sc[e, j] = f_sc[i]
 
     rec = ak.zip({
         "theta": th, "phi": ph,
