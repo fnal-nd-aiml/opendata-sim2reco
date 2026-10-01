@@ -19,3 +19,5 @@ reports/*/train.log
 reports/*/confusion_two_draws.npz
 *.defaults.json
 PaperDraft/
+reports/*/eval*.log
+reports/pipeline_1A/*.log

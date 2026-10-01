@@ -6,6 +6,7 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
 \usepackage{placeins}
+\input{../m3_1A/numbers.tex}
 
 \title{A generative surrogate of MINERvA reconstruction\\ trained on the open-data Monte Carlo: performance report}
 \author{L.~Wan\thanks{lwan@fnal.gov}}
@@ -20,8 +21,8 @@ Medium Energy FHC Monte Carlo. Given a generator's final-state particles and the
 samples whether a muon candidate is reconstructed, the MINOS match and charge, the reconstructed muon momentum,
 vertex and calorimetric energies, and a variable-size set of hadron prongs, and writes them as a pruned
 MasterAnaDev ntuple. On a held-out subrun split, gradient-boosted classifiers trained to tell surrogate from
-MasterAnaDev output reach AUC 0.534 on the event-level reconstructed quantities and
-0.516 on the prong content, with and without the truth information as additional input. All
+MasterAnaDev output reach AUC \nAUCmarg{} on the event-level reconstructed quantities and
+\nAUCprong{} on the prong content, with and without the truth information as additional input. All
 one-dimensional marginals agree to a Wasserstein distance below 0.06 in standardised units. We document the
 remaining discrepancies and the parts of the tuple that are derived rather than generated.
 \end{abstract}
@@ -34,11 +35,11 @@ remaining discrepancies and the parts of the tuple that are derived rather than 
 \section{Setup}
 \label{sec:setup}
 
-\paragraph{Data.} MINERvA open data~\cite{opendata}, Medium Energy FHC standard MC, playlist 1M. The
+\paragraph{Data.} MINERvA open data~\cite{opendata}, Medium Energy FHC standard MC, playlist 1A. The
 \texttt{Truth} tree holds every generated interaction and the \texttt{MasterAnaDev} tree those with a
 reconstructed muon candidate, together with a copy of the truth. The training population is CC~$\nu_\mu$
 interactions with true vertex $z \ge 4000$\,mm; neutral-current, $\nu_e$ and antineutrino events are out of
-scope for this version. \input{../m3/tables/data.tex}
+scope for this version. \input{../m3_1A/tables/data.tex}
 
 \paragraph{Inputs.} GENIE final-state particles after intranuclear FSI (\texttt{mc\_FSPart*}), dropping
 neutrinos, neutrons, GENIE pseudo-particles and nuclear remnants, and hadrons with kinetic energy below
@@ -69,7 +70,7 @@ prong generator is itself a second, smaller transformer over the $N$ prong token
 transformer with output layers but an encoder followed by MLP heads, an MLP-based flow and a set-transformer
 flow. The four groups of heads, in sampling order, are: (i) classification heads for the reconstruction flag, the MINOS match,
 the muon charge and the prong multiplicity $N$; (ii) a vertex-plane head, because the reconstructed vertex $z$
-lies exactly on one of about 200 scintillator-plane positions 22\,mm apart for 69\% of events, which predicts
+lies exactly on one of about 200 scintillator-plane positions 22\,mm apart for \nSnapReal{} of events, which predicts
 ``not snapped'', ``snapped to the plane nearest the true $z$ plus $\delta\in[-3,3]$'' or ``snapped to a farther
 plane'' from $z$, the flags, $N$ and the phase of the true $z$ within the plane cycle; (iii) an event flow,
 conditional flow matching over 9 variables (muon momentum as a response to the true muon, vertex residual, three
@@ -100,14 +101,14 @@ sampled by an earlier head, the dotted arrow cross-attention to the particle tok
 Table~\ref{tab:tier0} gives the test log loss and AUC of the three binary heads against two references: the
 constant-rate (marginal) predictor and a gradient-boosted tree trained on the 48 hand-built summary features
 of the final state. The surrogate, which sees the raw particle set, beats the tree on every target, most
-clearly for the reconstruction flag (0.364 versus 0.423). The predicted
+clearly for the reconstruction flag (\nRecoLL{} versus \nRecoLLtree{}). The predicted
 reconstruction probability is unbiased as a function of the true hadron count (Fig.~\ref{fig:heads}, right).
 Table~\ref{tab:mult} does the same for the prong multiplicity; the sampled multiplicity reproduces the
 MasterAnaDev distribution (Fig.~\ref{fig:heads}, left). Figure~\ref{fig:mult-conf} shows the multiplicity
 response as confusion matrices. The two truth-conditioned matrices, $P(N_\mathrm{reco} \mid n_\mathrm{true})$
-for MasterAnaDev and for the surrogate, agree to 0.01 in every cell: an event with one true charged hadron is
-reconstructed with no prong 51\% of the time and with one prong 42\%, with four true charged hadrons the most
-probable outcome is still a single prong (43\%), and the surrogate reproduces this saturation. The third matrix
+for MasterAnaDev and for the surrogate, agree to \nConfMaxDiff{} in every cell: an event with one true charged hadron is
+reconstructed with no prong \nConfOneZero{} of the time and with one prong \nConfOneOne{}, with four true charged hadrons the most
+probable outcome is still a single prong (\nConfFourOne{}), and the surrogate reproduces this saturation. The third matrix
 pairs MasterAnaDev's count with one surrogate draw for the same event (Table~\ref{tab:mult-conf}); since
 reconstruction is stochastic the two draws need not coincide, and the matrix should be read as a check that the
 surrogate's count is correlated with the real one through the truth, which it is, not as an accuracy.
@@ -118,38 +119,38 @@ time, while the reverse rows are nearly diagonal. It is regression to the mean i
 the truth $X$, the real count and the surrogate draw are two independent realisations of the same conditional
 distribution $p(N \mid X)$ if the surrogate is right; an event that happened to come out with four prongs is,
 in most cases, an event for which $p(4 \mid X)$ is small, so a second draw most probably returns to one or
-two. Row normalisation then divides very unequal row totals (207{,}947 events at $N=0$ against 99 at $N \ge 6$)
+two. Row normalisation then divides very unequal row totals (\nEvZero{} events at $N=0$ against \nEvSixPlus{} at $N \ge 6$)
 and produces the asymmetric appearance. Two checks confirm this reading (Fig.~\ref{fig:conf-sym}). First, if the
 two draws are exchangeable the \emph{joint} matrix must be symmetric, and it is: the largest asymmetry
-$|J_{ij} - J_{ji}|$ is 0.0011 against a largest entry of 0.275. Second, two independent surrogate draws
+$|J_{ij} - J_{ji}|$ is \nJointAsym{} against a largest entry of \nJointMax{}. Second, two independent surrogate draws
 for the same events give a row-normalised matrix with the same asymmetry as MasterAnaDev-versus-surrogate,
 to within 0.01 in every populated cell; MasterAnaDev re-run with a different random seed would produce the same
 picture against itself. The generative model is therefore expected to agree distribution by distribution and
 conditional by conditional, which it does (Fig.~\ref{fig:mult-conf}, left and centre), and not event by event.
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_confusion_symmetry.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_confusion_symmetry.png}
 \caption{Why the event-by-event matrix is asymmetric. Left: MasterAnaDev versus one surrogate draw,
 row-normalised. Centre: two independent surrogate draws for the same events, row-normalised, showing the same
-asymmetry. Right: the joint (unnormalised) MasterAnaDev-versus-surrogate matrix, symmetric to 0.0011.}
+asymmetry. Right: the joint (unnormalised) MasterAnaDev-versus-surrogate matrix, symmetric to \nJointAsym{}.}
 \label{fig:conf-sym}
 \end{figure}
 
 \begin{table}[h]\centering
-\input{../m3/tables/tier0.tex}
+\input{../m3_1A/tables/tier0.tex}
 \caption{Binary heads: test log loss (lower is better) and AUC for the marginal predictor, the tree baseline on
 summary features, and the surrogate.}
 \label{tab:tier0}
 \end{table}
 
 \begin{table}[h]\centering
-\input{../m3/tables/multiplicity.tex}
+\input{../m3_1A/tables/multiplicity.tex}
 \caption{Prong multiplicity head ($N \in \{0,\dots,8\}$) among reconstructed events.}
 \label{tab:mult}
 \end{table}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_multiplicity_confusion.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_multiplicity_confusion.png}
 \caption{Prong-multiplicity confusion, row-normalised. Left and centre: reconstructed prongs versus true charged
 hadrons (p, $\pi^\pm$, $K^\pm$ after FSI) for MasterAnaDev and for the surrogate. Right: MasterAnaDev's count
 versus one surrogate draw for the same event.}
@@ -157,14 +158,14 @@ versus one surrogate draw for the same event.}
 \end{figure}
 
 \begin{table}[h]\centering\small
-\input{../m3/tables/multiplicity_confusion.tex}
+\input{../m3_1A/tables/multiplicity_confusion.tex}
 \caption{Event-by-event confusion between MasterAnaDev's prong count (rows, with the number of test events) and
 one surrogate draw (columns), row-normalised.}
 \label{tab:mult-conf}
 \end{table}
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.75\textwidth]{../m3/figures/heads_multiplicity_eff.png}
+\includegraphics[width=0.75\textwidth]{../m3_1A/figures/heads_multiplicity_eff.png}
 \caption{Left: reconstructed hadron-prong multiplicity, MasterAnaDev versus one surrogate sample per event.
 Right: observed and predicted probability of a reconstructed muon candidate versus the number of true hadrons
 after the input cuts.}
@@ -178,52 +179,52 @@ after the input cuts.}
 Table~\ref{tab:tier1} lists the nine generated event-level variables in the model's standardised space.
 Figure~\ref{fig:muon} shows the muon momentum response separately for MINOS-matched muons, whose ratio
 $P_\mathrm{reco}/P_\mathrm{true}$ has a narrow core, and for unmatched muons, whose response is bimodal
-with a spread of more than a factor of two; the surrogate reproduces both, with $W_1 = 0.004$ and
-0.01 respectively. Figure~\ref{fig:vertex} shows the vertex residuals, whose $z$ component
+with a spread of more than a factor of two; the surrogate reproduces both, with $W_1 = \nWoneMuMatched{}$ and
+\nWoneMuUnmatched{} respectively. Figure~\ref{fig:vertex} shows the vertex residuals, whose $z$ component
 carries the plane-snapping structure discussed in Section~\ref{sec:vertex}. Figure~\ref{fig:calo} shows the
 calorimetric energies, including the populations at exactly zero energy reproduced by dequantisation, and the
 two derived branches. Figure~\ref{fig:cond} tests the conditional behaviour: the muon response versus true
 momentum and the recoil energy versus true hadronic kinetic energy follow MasterAnaDev in median and 16--84\%
 band over the full range.
 Figure~\ref{fig:corr} compares the correlation matrices of the nine variables; the largest difference in any
-coefficient is 0.005.
+coefficient is \nCorrDiff{}.
 
 \begin{table}[h]\centering\small
-\resizebox{\textwidth}{!}{\input{../m3/tables/tier1_marginals.tex}}
+\resizebox{\textwidth}{!}{\input{../m3_1A/tables/tier1_marginals.tex}}
 \caption{Event-level generated variables on reconstructed test events, in the model's robustly standardised
 space; one surrogate sample per event with the flags, multiplicity and vertex class also sampled.}
 \label{tab:tier1}
 \end{table}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/tier1_muon.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/tier1_muon.png}
 \caption{Muon response in model space: $\log(P_\mathrm{reco}/P_\mathrm{true})$ for MINOS-matched (left) and
 unmatched (centre) muons, and the difference of the projected angle $\theta_x$ (right).}
 \label{fig:muon}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/tier1_vertex.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/tier1_vertex.png}
 \caption{Reconstructed-minus-true vertex residuals in model space (asinh-compressed).}
 \label{fig:vertex}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/tier1_calorimetry.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/tier1_calorimetry.png}
 \caption{Calorimetric branches, $\log(E+1)$. The first three are generated; the spike at zero is the exactly-zero
 population. The last two are derived from \texttt{recoil\_E} at decode time.}
 \label{fig:calo}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.75\textwidth]{../m3/figures/tier1_conditionals.png}
+\includegraphics[width=0.75\textwidth]{../m3_1A/figures/tier1_conditionals.png}
 \caption{Conditional response: median and 16--84\% band of the muon momentum ratio versus true muon momentum
 (left) and of $\log E_\mathrm{recoil}$ versus true hadronic kinetic energy after cuts (right).}
 \label{fig:cond}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.75\textwidth]{../m3/figures/tier1_correlations.png}
+\includegraphics[width=0.75\textwidth]{../m3_1A/figures/tier1_correlations.png}
 \caption{Correlation matrices of the nine event-level variables (order as in Table~\ref{tab:tier1}).}
 \label{fig:corr}
 \end{figure}
@@ -233,51 +234,50 @@ population. The last two are derived from \texttt{recoil\_E} at decode time.}
 \label{sec:prongs}
 
 Table~\ref{tab:prongs} compares the prong-level marginals over all prongs of reconstructed test events. A
-prong either carries kinematics (a direction and a pion-hypothesis momentum, 77\% of prongs) or
-nothing but its existence; 65\% also have a proton fit. Direction, both momentum hypotheses and the
-proton score are reproduced to $W_1 \le 0.006$ (Fig.~\ref{fig:prongs}), and the per-event
+prong either carries kinematics (a direction and a pion-hypothesis momentum, \nKinFrac{} of prongs) or
+nothing but its existence; \nPfitFrac{} also have a proton fit. Direction, both momentum hypotheses and the
+proton score are reproduced to $W_1 \le \nProngWoneMax{}$ (Fig.~\ref{fig:prongs}), and the per-event
 counts of prongs by category to within one per cent (Fig.~\ref{fig:prong-event}). No prong-to-true-particle
 correspondence is generated; the flow learns the prong set given the particle set and any assignment lives
 implicitly in the cross-attention.
 
 Closure AUCs summarise agreement but hide what the hadron output looks like, so Figures~\ref{fig:prong-cond}
 and~\ref{fig:prong-pid} compare physical quantities against the truth. The fraction of events with a proton fit
-rises from 22\% at a true leading-proton kinetic energy of 50--80\,MeV to 54\% at 300--400\,MeV and falls again
+rises from \nPfitLow{} at a true leading-proton kinetic energy of 50--80\,MeV to \nPfitPeak{} at its peak near 300--400\,MeV and falls again
 for protons above 1\,GeV, which increasingly exit or interact; the surrogate follows this curve to within one
-per cent everywhere except the highest bin (47\% versus 46\%). The reconstructed proton-hypothesis momentum of
+per cent (highest bin: \nPfitHiFake{} versus \nPfitHiReal{}). The reconstructed proton-hypothesis momentum of
 the leading prong tracks the truth in median and in the 16--84\% band over the same range. The mean number of
 reconstructed prongs versus the true number of charged hadrons after FSI (Fig.~\ref{fig:prong-cond}, right)
-shows the saturation of the reconstruction: it rises from 0.57 at one charged hadron to 0.93 at four and turns
-over to 0.80 at six, and the surrogate reproduces the whole shape, including the separate curve for prongs
-that carry kinematics, to within 0.01 prongs above one hadron; at zero true charged hadrons (2,524 events,
-where every prong is a fake from a neutron, photon or overlay) the surrogate gives 0.59 against 0.61.
+shows the saturation of the reconstruction: it rises from \nProngsOne{} at one charged hadron to \nProngsFour{} at four and turns
+over to \nProngsSix{} at six, and the surrogate reproduces the whole shape, including the separate curve for prongs
+that carry kinematics, to within 0.01 prongs above one hadron; at zero true charged hadrons (\nEventsZeroCh{} events,
+where every prong is a fake from a neutron, photon or overlay) the surrogate gives \nProngsZeroFake{} against \nProngsZeroReal{}.
 Figure~\ref{fig:prong-pid} tests particle identification: the proton score of prongs in events whose leading
 true hadron is a proton peaks at zero but has a shoulder at 0.8 that is absent for pion-led events, and the
-surrogate reproduces both shapes (medians 0.26 versus 0.23 for proton-led, 0.077 versus
-0.079 for pion-led). The same figure shows the pion-hypothesis momentum in MeV and the prong angle to the
+surrogate reproduces both shapes (medians \nScoreMedPReal{} versus \nScoreMedPFake{} for proton-led, \nScoreMedPiReal{} versus
+\nScoreMedPiFake{} for pion-led). The same figure shows the pion-hypothesis momentum in MeV and the prong angle to the
 beam in degrees, where the backward population above 90$^\circ$ and the dip at 90$^\circ$ from the planar
 tracking are both present in the surrogate.
 
 Because the surrogate produces no prong-to-particle correspondence, particle identification is tested on a
 sample where the correspondence is unambiguous: events with exactly one true charged hadron and exactly one
-reconstructed prong (59,334 MasterAnaDev and 59,420 surrogate events). Table~\ref{tab:pid} and
+reconstructed prong (\nPIDevents{} MasterAnaDev events). Table~\ref{tab:pid} and
 Figure~\ref{fig:pid} give, for each true species, the probability of each reconstruction outcome: no kinematics,
 kinematics without a proton fit, proton fit with score below 0.5, proton fit with score at or above 0.5. A true
-proton ends with a high proton score in 27\% of cases against 5\% for a true $\pi^+$, and the surrogate
-reproduces every entry of the matrix to within 0.016. Using the score to separate protons from charged
-pions among prongs with a proton fit gives an AUC of 0.739 in MasterAnaDev and 0.724 in the
-surrogate (Fig.~\ref{fig:pid}, right): the surrogate's PID is slightly less informative than the real one, by
-0.015 in AUC, which is the one place in the hadron output where a residual difference is measurable.
+proton ends with a high proton score in \nPIDprotonHigh{} of cases against \nPIDpionHigh{} for a true $\pi^+$, and the surrogate
+reproduces every entry of the matrix to within \nPIDmaxDiff{}. Using the score to separate protons from charged
+pions among prongs with a proton fit gives an AUC of \nPIDaucReal{} in MasterAnaDev and \nPIDaucFake{} in the
+surrogate (Fig.~\ref{fig:pid}, right), a difference of \nPIDaucGap{}.
 
 \begin{table}[h]\centering\small
-\resizebox{\textwidth}{!}{\input{../m3/tables/pid_species.tex}}
+\resizebox{\textwidth}{!}{\input{../m3_1A/tables/pid_species.tex}}
 \caption{Reconstruction outcome by true hadron species on single-hadron, single-prong events: MasterAnaDev /
 surrogate row fractions, and the proton-vs-pion AUC of the proton score among prongs with a proton fit.}
 \label{tab:pid}
 \end{table}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_pid_species.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_pid_species.png}
 \caption{Particle identification versus true species on single-hadron, single-prong events. Left and centre:
 row-normalised outcome matrices for MasterAnaDev and the surrogate. Right: ROC curves of the proton score for
 true protons against true charged pions.}
@@ -285,7 +285,7 @@ true protons against true charged pions.}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_prong_conditionals.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_prong_conditionals.png}
 \caption{Hadron validation against the truth. Left: fraction of events with at least one proton fit versus the
 true leading-proton kinetic energy. Centre: proton-hypothesis momentum of the leading prong versus the same,
 median and 16--84\% band. Right: mean number of reconstructed prongs (all, and with kinematics) versus the true
@@ -294,27 +294,27 @@ number of charged hadrons after FSI.}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_prong_pid.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_prong_pid.png}
 \caption{Left: proton score of prongs with a proton fit, for events whose leading true hadron is a proton or a
 charged pion. Centre: pion-hypothesis momentum. Right: prong angle to the beam.}
 \label{fig:prong-pid}
 \end{figure}
 
 \begin{table}[h]\centering
-\input{../m3/tables/prongs.tex}
+\input{../m3_1A/tables/prongs.tex}
 \caption{Prong-level marginals: category fractions over all prongs, and median [16\%, 84\%] with $W_1$ for the
 continuous fields of prongs that have the corresponding fit.}
 \label{tab:prongs}
 \end{table}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../m3/figures/m3_prongs.png}
+\includegraphics[width=\textwidth]{../m3_1A/figures/m3_prongs.png}
 \caption{Prong direction, pion- and proton-hypothesis momenta, and proton score.}
 \label{fig:prongs}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.9\textwidth]{../m3/figures/m3_prong_event.png}
+\includegraphics[width=0.9\textwidth]{../m3_1A/figures/m3_prong_event.png}
 \caption{Per-event number of prongs with kinematics, with a proton fit, and exiting the detector.}
 \label{fig:prong-event}
 \end{figure}
@@ -323,15 +323,15 @@ continuous fields of prongs that have the corresponding fit.}
 \subsection{Vertex plane}
 \label{sec:vertex}
 
-MasterAnaDev places 68.9\% of reconstructed vertices within 0.1\,mm of a scintillator-plane position;
-68.8\% of those are within three planes of the true $z$ and the rest on a farther plane. The
-surrogate reproduces both fractions (69.0\%, 68.7\%) and the distribution of the
-offset to the nearest plane, including the continuum of unsnapped vertices ($W_1 = 0.07$\,mm,
-Fig.~\ref{fig:vtxplane}). The class head has test log loss 1.573 against 1.621 for the marginal,
+MasterAnaDev places \nSnapReal{} of reconstructed vertices within 0.1\,mm of a scintillator-plane position;
+\nSnapNearReal{} of all events are within three planes of the true $z$ and the remaining snapped ones on a farther plane. The
+surrogate reproduces both fractions (\nSnapFake{}, \nSnapNearFake{}) and the distribution of the
+offset to the nearest plane, including the continuum of unsnapped vertices ($W_1 = \nSnapWone{}$\,mm,
+Fig.~\ref{fig:vtxplane}). The class head has test log loss \nVtxLL{} against \nVtxLLmarg{} for the marginal,
 evaluated with sampled flags and multiplicity as its conditions.
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.75\textwidth]{../m3/figures/m3_vertex.png}
+\includegraphics[width=0.75\textwidth]{../m3_1A/figures/m3_vertex.png}
 \caption{Left: reconstructed vertex $z$ minus the nearest plane position; the spike at zero is the snapped
 population. Right: vertex class marginals (0 unsnapped, 4 nearest plane, 8 farther plane).}
 \label{fig:vtxplane}
@@ -343,26 +343,113 @@ population. Right: vertex class marginals (0 unsnapped, 4 nearest plane, 8 farth
 
 Table~\ref{tab:closure} collects the classifier tests on the event-level variables and Table~\ref{tab:closure2}
 those on the prongs and the vertex. On the nine event-level variables the classifier reaches AUC
-0.534 without and 0.534 with the truth features; no block exceeds
-0.534 alone or 0.525 conditionally, and the flags and multiplicity given the truth are at
-0.496. On the prong summaries ($N$, prongs with kinematics, proton fits, exiting prongs, leading
-$P_\pi$ and angle, $\sum P_\pi$, maximum score) the AUC is 0.516 and 0.511; on the truth
-features plus the reconstructed vertex $z$ it is 0.547, the largest remaining value, from the residual
+\nAUCmarg{} without and \nAUCcond{} with the truth features; no block exceeds
+\nAUCblockMax{} alone or \nAUCcondBlockMax{} conditionally, and the flags and multiplicity given the truth are at
+\nAUCflags{}. On the prong summaries ($N$, prongs with kinematics, proton fits, exiting prongs, leading
+$P_\pi$ and angle, $\sum P_\pi$, maximum score) the AUC is \nAUCprong{} and \nAUCprongCond{}; on the truth
+features plus the reconstructed vertex $z$ it is \nAUCvtxz{}, the largest remaining value, from the residual
 imperfection of the plane-class head. The design target for these tests was 0.55.
 
 \begin{table}[h]\centering
-\input{../m3/tables/closure.tex}
+\input{../m3_1A/tables/closure.tex}
 \caption{Closure classifiers on the event-level variables: overall, by block, by single variable, and with the
 truth features added.}
 \label{tab:closure}
 \end{table}
 
 \begin{table}[h]\centering
-\input{../m3/tables/tier2_closure.tex}
+\input{../m3_1A/tables/tier2_closure.tex}
 \caption{Closure of the prong set and the vertex plane.}
 \label{tab:closure2}
 \end{table}
 \FloatBarrier
+
+\section{Holdout test: a 2p2h-blind surrogate}
+\label{sec:holdout}
+
+The purpose of the surrogate is to produce reconstructed-level predictions for final states the released
+simulation does not contain. The first test of that claim holds out an entire interaction mode: a second model
+(B) is trained from scratch with all 2p2h events (GENIE mode 8, \nHtwoP{} events, 2.8\% of the population)
+removed from training and validation, while the model of Sections~\ref{sec:model}--\ref{sec:perf} (A) saw them.
+Both are evaluated on the same \nHtest{} 2p2h test events against the open dataset's own reconstruction of those
+events; B is also evaluated on the non-2p2h test events as a control. Neither model receives the interaction
+mode as input, so the test asks whether the detector response learned from QE, resonant and deep-inelastic
+final states transfers to 2p2h final states.
+
+\paragraph{Where 2p2h sits in input space.} Figure~\ref{fig:hold-cov} shows what the blind model has to
+extrapolate to. After the input cuts, 2p2h final states are pion-less: \nHfracTwoPtwoph{} have exactly two
+protons, against \nHfracTwoPother{} of all other modes. The two-proton, pion-less category is nevertheless
+populated in training by \nHnTwoPother{} events from other modes, mostly resonant and deep-inelastic events in
+which the pion was absorbed, with softer protons (median leading-proton kinetic energy \nHleadKEQE{}\,MeV for QE
+and \nHleadKERES{}\,MeV for RES against \nHleadKETwoPTwoH{}\,MeV for 2p2h). The holdout is therefore a strong
+shift in composition and a moderate shift in kinematics within covered support, not a test on unseen final
+states; it is the realistic case of applying the surrogate to a generator with a different 2p2h model.
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.9\textwidth]{../holdout_2p2h_1A/figures/holdout_input_coverage.png}
+\caption{Input coverage of the held-out mode. Left: final-state category after the input cuts for 2p2h and for
+all other modes. Right: leading-proton kinetic energy in two-proton, pion-less final states by interaction mode.}
+\label{fig:hold-cov}
+\end{figure}
+
+\paragraph{Result.} Table~\ref{tab:holdout} compares the two models. On the 2p2h test events the blind model
+is statistically indistinguishable from the model that saw them: closure AUC \nHBAUCmarg{} against
+\nHAAUCmarg{} on the reconstructed quantities and \nHBAUCcond{} against \nHAAUCcond{} with the truth features,
+prong closure \nHBProng{} against \nHAProng{}, identical log losses for the reconstruction flag and the
+multiplicity, and $W_1$ for the recoil energy of \nHBWoneRecoil{} against \nHAWoneRecoil{}. On the control sample
+B matches A's full-test performance (\nHCtlAUCmarg{} against \nHFullAUCmarg{}), so removing 2.8\% of the data
+cost nothing elsewhere. Figures~\ref{fig:hold-cond}, \ref{fig:hold-eff} and~\ref{fig:hold-mult} show the three-way comparisons: the
+muon response, the recoil energy versus hadronic energy and the proton momentum versus the true proton energy
+(Fig.~\ref{fig:hold-cond}); the efficiency, the prong count versus true multiplicity and the proton-fit rate
+(Fig.~\ref{fig:hold-eff}); and the multiplicity confusion matrices (Fig.~\ref{fig:hold-mult}), with A and B lying
+on top of each other everywhere.
+
+\begin{table}[h]\centering\small
+\resizebox{\textwidth}{!}{\input{../holdout_2p2h_1A/tables/holdout_summary.tex}}
+\caption{Holdout summary. Columns: model A (trained with 2p2h) and model B (2p2h blind) on the 2p2h test
+events; B on the non-2p2h control; A on the full test split. The PID AUC on 2p2h is not meaningful (three
+pion-led events) and is listed only for completeness.}
+\label{tab:holdout}
+\end{table}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../holdout_2p2h_1A/figures/holdout_conditionals.png}
+\caption{2p2h test events: muon momentum response versus true momentum, recoil energy versus true hadronic
+kinetic energy, and leading proton-hypothesis momentum versus true leading-proton kinetic energy, for the open
+dataset, model A and the blind model B (median and 16--84\% band).}
+\label{fig:hold-cond}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../holdout_2p2h_1A/figures/holdout_efficiency_prongs.png}
+\caption{2p2h test events: reconstruction probability versus true hadron count, mean reconstructed prongs versus
+true charged hadrons, and proton-fit rate versus true leading-proton kinetic energy.}
+\label{fig:hold-eff}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../holdout_2p2h_1A/figures/holdout_multiplicity.png}
+\caption{2p2h test events: reconstructed prong multiplicity versus true charged hadrons for the open dataset,
+model A and the blind model B.}
+\label{fig:hold-mult}
+\end{figure}
+
+\paragraph{What the residual is.} Both models differ from the open dataset on 2p2h by about the same amount,
+and more than on the full test split (AUC \nHAAUCmarg{} against \nHFullAUCmarg{}). The per-block and per-variable
+classifiers locate the difference in the calorimetric block (conditional AUC \nHACalo{} for A, \nHBCalo{} for B)
+and specifically in the isolated-blob energy, and the multiplicity matrices show it too: 2p2h events with no
+true charged hadron after the cuts have a reconstructed prong 7\% of the time in the open dataset and never in
+either surrogate. Both point at the same cause. 2p2h produces a neutron in about half of its final states, and
+neutrons are dropped from the surrogate's input (design decision 2); the calorimetric activity and the
+occasional fake prong they produce are then unexplained by anything the model can see, and 2p2h is the mode
+where that matters most. The residual is a limitation of the input definition, not of the extrapolation, and
+the obvious remedy is to let neutrons in as tokens.
+
+\paragraph{Scope of the conclusion.} A single seed per model was trained, so differences below about 0.01 in
+AUC are not resolved. The result establishes that the response transfers across a composition shift within
+covered support, which is the common case for generator comparisons; it does not establish extrapolation to
+final states absent from training, for which the natural next test is to hold out all two-proton, pion-less
+events regardless of mode.
 
 \section{Known limitations}
 \label{sec:limits}
@@ -375,9 +462,12 @@ truth features added.}
   widths of about 3\% and 10\%). Analyses that depend on that scatter should use \texttt{recoil\_E}.
 \item \textbf{No truth-matched prongs.} The tuple's per-prong truth match is used only to validate the training
   data. A per-prong pointer head over the particle tokens would provide it.
-\item \textbf{Scope.} CC~$\nu_\mu$, ME FHC, true vertex $z \ge 4000$\,mm, one training seed, and in-distribution
-  validation only. Extrapolation to final states outside the training phase space is the subject of the next
-  study and is not tested here.
+\item \textbf{Neutrons.} Dropping neutrons from the input leaves their calorimetric activity and occasional fake
+  prongs unexplained; the 2p2h holdout (Section~\ref{sec:holdout}) shows this is the dominant residual for
+  neutron-rich final states. Re-admitting neutrons as tokens is the first design change to make.
+\item \textbf{Scope.} CC~$\nu_\mu$, ME FHC playlist 1A, true vertex $z \ge 4000$\,mm, one training seed.
+  The holdout of Section~\ref{sec:holdout} tests a composition shift within covered support; extrapolation to
+  final states absent from training is not tested.
 \end{itemize}
 
 \appendix
@@ -391,7 +481,7 @@ the detector frame. (2)~\texttt{muon\_qp} is $-9999.9$ when there is no MINOS ma
 defined as matched and negative. (3)~A prong with $P=1$, $E=0$ is a direction-only sentinel. (4)~Eight of 4.8
 million reconstructed events have NaN or infinite muon momenta or vertices, one a vertex coordinate of order
 $10^{14}$\,mm. (5)~The two calibrated recoil branches are point masses in ratio to \texttt{recoil\_E}. (6)~The
-reconstructed vertex $z$ is quantised to plane positions for 69\% of events, and the plane chosen depends on the
+reconstructed vertex $z$ is quantised to plane positions for \nSnapReal{} of events, and the plane chosen depends on the
 true $z$'s phase within the 22\,mm cycle. (7)~Broad tails (unmatched muons, vertex residuals) must be compressed,
 not clipped: clipping at $\pm 12$ robust $\sigma$ put 9--17\% of those variables on the clip boundary.
 
