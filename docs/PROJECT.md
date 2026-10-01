@@ -294,7 +294,7 @@ directly useful for validation. Start with flow matching for both tiers to keep 
 | M1 ✅ | Baselines: GBDT efficiency / MINOS / charge / multiplicity, MDN muon response + recoil | Done 2026-09-23: `reports/m1/`, `reports/performance/main.tex` |
 | M2 ✅ | Set encoder + Tier 0/cardinality heads + 9-d flow matching, 32 files, subrun split | Done 2026-09-23: heads beat M1 on all targets; closure AUC 0.57 marginal / 0.62 conditional (vertex-z plane snapping is the residual). `scripts/surrogate_to_ntuple.py` writes the pruned ntuple. |
 | M3 ✅ | Tier 2 prong set model (masked set flow matching, cross-attending the particle tokens) + discrete vertex-plane head | Done 2026-09-24: prong closure AUC 0.52 / 0.51; Tier 1 closure 0.534 / 0.534; vertex comb reproduced; full 80-branch pruned ntuple |
-| M4 | Physics-holdout extrapolation study (§7), ensemble OOD score. Reordered after M3 on 2026-09-24: extrapolation is mostly about hadrons, so it needs the prong model first. | Written report of where it works and where it does not |
+| M4 ✅ (first study) | 2p2h holdout on playlist 1A: model B trained without 2p2h, compared with model A on 2p2h test events | Done 2026-10-01: B indistinguishable from A (closure AUC 0.575 vs 0.572); residual on 2p2h traced to dropped neutrons. Ensembles and an out-of-support holdout (all 2p 0π final states) remain. |
 | M5 | First application: alternative-generator truth → surrogate reco → comparison to open data | Paper-quality reco-level comparison |
 
 ## 12. References and prior art
@@ -468,3 +468,20 @@ whole tuple runs unchanged. Those added branches carry no information and must n
   M2 exit criterion is now met in both forms.
 - **No prong-to-truth correspondence** is produced (implicit in attention); a per-prong pointer head is the next addition
   if needed. Extrapolation study (M4) can now start on the complete interface.
+
+## 17. Playlist switch and 2p2h holdout (2026-09-30 / 10-01)
+
+- **Playlist 1A replaces 1M** (requirement). 30 of 41 files slimmed (9.6 GB), 11.5M CC nu_mu events, 41.9% reconstructed.
+  1M inputs deleted; 1M weights kept under `reports/*_1M`. All models retrained; the technote and paper numbers are now
+  generated macros (`scripts/technote_numbers.py` → `reports/m3_1A/numbers.tex`).
+- **Holdout result.** With 2p2h (324,696 events) removed from training and validation, the blind model B reproduces
+  the 2p2h reconstruction as well as model A does: closure AUC 0.575 vs 0.572 (reco), 0.573 vs 0.566 (truth + reco),
+  prong closure 0.513 vs 0.506; B on the non-2p2h control 0.533 vs A 0.528 on the full test. 2p2h is a composition
+  shift within covered support (2p 0π final states exist from RES/DIS pion absorption), which is the realistic
+  generator-comparison case; it is not an out-of-support test.
+- **Residual = neutrons.** Both A and B differ from the open dataset on 2p2h in the calorimetric block (isolated blobs)
+  and in fake prongs of events with no true charged hadron (7% in the open dataset, 0% in both surrogates). 2p2h emits a
+  neutron in about half of its final states and neutrons are not input tokens (decision 2). **Re-admitting neutrons as
+  tokens is the next design change.**
+- **Next for M4:** seeds for an uncertainty handle; hold out all 2p 0π final states regardless of mode (out of support);
+  then neutron tokens and a re-run of both.

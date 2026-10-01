@@ -5,7 +5,7 @@ reconstructed variables, trained on the [MINERvA open data](https://minerva.fnal
 extrapolate to final states the released MC does not cover (alternative generators, higher multiplicity, new
 kinematic regions).
 
-Status: M0 (data pipeline), M1 (baselines) and M2 (set encoder + flow-matching surrogate, closure AUC 0.57) done; M3 (prong set model + vertex-plane head) done; M4 extrapolation study next. Read [`docs/PROJECT.md`](docs/PROJECT.md) first; performance numbers are in `reports/performance/main.tex` (compiled with tectonic; describes the current model, not the milestone history).
+Status: M0 (data pipeline), M1 (baselines) and M2 (set encoder + flow-matching surrogate, closure AUC 0.57) done; M3 (prong set model + vertex-plane head) done; first M4 holdout (2p2h-blind model) done on playlist 1A; neutron tokens and an out-of-support holdout next. Read [`docs/PROJECT.md`](docs/PROJECT.md) first; performance numbers are in `reports/performance/main.tex` (compiled with tectonic; describes the current model, not the milestone history).
 
 ## Model schematic
 
@@ -18,16 +18,18 @@ Architecture of the current surrogate (encoder, classification heads, vertex-pla
 ```
 bash scripts/setup_env.sh                                  # Python >= 3.9 venv with torch (CUDA), uproot, ...
 source .venv/bin/activate
-python scripts/slim_remote.py configs/MediumEnergy_FHC_StandardMC_Playlist1M.txt data/slim --budget-gb 9.5
+python scripts/slim_remote.py configs/MediumEnergy_FHC_StandardMC_Playlist1A.txt data/slim_1A --budget-gb 9.5
                                                            # stream from xrootd, 20 GB ROOT -> 300 MB Parquet per file
 python scripts/slim.py data/slim some_local_file.root      # same for a local ROOT file
 python scripts/dataset_summary.py data/slim/MasterAnaDev_mc_AnaTuple_run00113069_Playlist
 python scripts/run_m1.py data/slim/MasterAnaDev_mc_AnaTuple_run00113069_Playlist reports/m1   # baselines, ~1 min on a GPU
-python scripts/run_m2.py reports/m2 --epochs 30                                         # surrogate, ~2 h on an RTX 3090, all files in data/slim
-python scripts/run_m3.py reports/m3 --epochs 12 --init reports/m2/model.pt                 # prong model, warm start from M2
-python scripts/surrogate_to_ntuple.py reports/m3 data/slim/<stem>.truth.parquet out.root  # truth -> pruned MasterAnaDev ntuple (80 branches)
+python scripts/run_m2.py reports/m2_1A --epochs 30                                         # surrogate, ~2 h on an RTX 3090, all files in data/slim
+python scripts/run_m3.py reports/m3_1A --epochs 16 --init reports/m2_1A/model.pt                 # prong model, warm start from M2
+python scripts/surrogate_to_ntuple.py reports/m3_1A data/slim/<stem>.truth.parquet out.root  # truth -> pruned MasterAnaDev ntuple (80 branches)
 python scripts/conform_ntuple.py out.root MasterAnaDev_data_AnaTuple_run00010255_Playlist.root out_full.root --strict
                                                            # optional: full 3,687-branch schema + Meta tree, unmodelled branches at their sentinel defaults
+bash scripts/pipeline_1A.sh                                 # unattended: slim-wait, caches, M1, model A, 2p2h-blind model B, evaluations
+python scripts/holdout_compare.py reports/holdout_2p2h_1A --a reports/m3_1A_on2p2h --b reports/m3_1A_no2p2h_on2p2h --b-control reports/m3_1A_no2p2h_control --a-full reports/m3_1A
 pytest -q                                                  # round-trip tests (ROOT file or its slimmed Parquet)
 (cd reports/performance && tectonic -X compile main.tex)   # performance report PDF
 ```
