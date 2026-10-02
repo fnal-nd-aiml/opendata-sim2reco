@@ -28,9 +28,9 @@
 \node[box, draw=cin] (gen) {\textbf{Final-state particles} (any generator)\\
   $\{(\mathrm{pdg}_i,\;p_{x,i},p_{y,i},p_{z,i})\}$, vertex $(x,y,z)$, nucleus $(Z,A)$};
 \node[box, draw=cin, below=of gen] (pipe) {\textbf{Input pipeline}\\
-  drop $\nu$, $n$, pseudo-particles, remnants; hadron KE $\ge 50$\,MeV\\
-  pdg $\to$ 11 species classes; $\pi^0$ kept as one token};
-\node[box, draw=cin, below=of pipe] (tok) {\textbf{Tokens} $\;n \le 32$ particles\\
+  drop $\nu$, pseudo-particles, remnants; hadron (incl.\ $n$) KE $\ge 10$\,MeV\\
+  pdg $\to$ 12 species classes (incl.\ $n$); $\pi^0$ kept as one token};
+\node[box, draw=cin, below=of pipe] (tok) {\textbf{Tokens} (7.3 per event on average)\\
   class embedding $\oplus$ MLP$(\mathrm{asinh}\,\vec p,\ \log|p|,\ \hat p)$ $\to$ 128\\
   \textbf{global token} $=$ MLP$(x,y,z,Z,A)$ $\to$ 128};
 

@@ -25,7 +25,7 @@ PASSTHROUGH = ["mc_run", "mc_subrun", "mc_nthEvtInFile", "eventID", "mc_vtx", "m
                "mc_incoming", "mc_current", "mc_intType"]
 
 
-def truth_to_compact(truth, ke_cut_mev=50.0, keep_neutrons=False):
+def truth_to_compact(truth, ke_cut_mev=10.0, keep_neutrons=True):
     parts = select_from_tuple(truth, ke_cut_mev, keep_neutrons); n = ak.to_numpy(ak.num(parts["cls"])).astype(np.int32)
     pdg = truth["mc_FSPartPDG"]; mu = pdg == 13
     Pmu = np.sqrt(truth["mc_FSPartPx"] ** 2 + truth["mc_FSPartPy"] ** 2 + truth["mc_FSPartPz"] ** 2)

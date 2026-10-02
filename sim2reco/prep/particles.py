@@ -9,7 +9,8 @@ import numpy as np
 
 from ..constants import PDG_CLASS, PDG_MASS
 
-DEFAULT_KE_CUT_MEV = 50.0
+DEFAULT_KE_CUT_MEV = 10.0   # adopted 2026-10-02 (was 50); see docs/PROJECT.md §18
+DEFAULT_KEEP_NEUTRONS = True  # neutrons are input tokens (adopted 2026-10-02)
 DROP_PDG_ABS = {12, 14, 16}                 # neutrinos (always); neutrons are dropped unless keep_neutrons
 HADRON_CLASSES = {4, 5, 6, 7, 8, 9, 10, 12} # p, pi+, pi-, pi0, K+-, K0, hyperon, n: KE cut applies
 OTHER_CLASS = 11
@@ -45,7 +46,7 @@ def pdg_to_mass(pdg):
     return out
 
 
-def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = False) -> ak.Array:
+def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = DEFAULT_KEEP_NEUTRONS) -> ak.Array:
     """Apply the 13.1 selection and return a record array {cls, px, py, pz} per event.
 
     Steps: drop neutrinos, GENIE pseudo-particles (2000000101), nuclear remnants (pdg > 1e9) and, unless
@@ -63,7 +64,7 @@ def select_particles(pdg, px, py, pz, E, ke_cut_mev: float = DEFAULT_KE_CUT_MEV,
     return ak.zip({"cls": cls[keep], "px": px[keep], "py": py[keep], "pz": pz[keep]})
 
 
-def select_from_tuple(events: ak.Array, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = False) -> ak.Array:
+def select_from_tuple(events: ak.Array, ke_cut_mev: float = DEFAULT_KE_CUT_MEV, keep_neutrons: bool = DEFAULT_KEEP_NEUTRONS) -> ak.Array:
     """Convenience wrapper on slimmed tuple arrays (mc_FSPart* branches)."""
     return select_particles(events["mc_FSPartPDG"], events["mc_FSPartPx"], events["mc_FSPartPy"],
                             events["mc_FSPartPz"], events["mc_FSPartE"], ke_cut_mev, keep_neutrons)

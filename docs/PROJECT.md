@@ -276,7 +276,7 @@ directly useful for validation. Start with flow matching for both tiers to keep 
 | # | Question | Decision |
 |---|---|---|
 | 1 | pi0 on the input side | **Keep the pi0 as one token.** Decaying it ourselves was considered and rejected: the truth photons are not in the tuple (Geant4 decayed the pi0), so generated photons would be uncorrelated with the real event. |
-| 2 | Neutrons and low-KE particles | **Drop neutrons entirely** from the inputs for v1 and **apply a 50 MeV KE cut** to the remaining hadrons. Consequence: the neutron contribution to recoil energy and to fake prongs becomes unexplained noise the model has to absorb; revisit if the recoil response looks too broad. |
+| 2 | Neutrons and low-KE particles | v1: drop neutrons, 50 MeV KE cut. **Superseded 2026-10-02** by the variant study (§18): hadrons including neutrons enter as tokens with a **10 MeV** KE threshold; neutrons are a 12th species class. |
 | 3 | Canonical prong table | The model uses its own internal representation (n, prong[0..n-1]) but **the delivered output is a ROOT ntuple with the same branch names, types and fill conventions as the open-data tuple, pruned to the modelled branches**, so downstream code needs no changes. Schema in §13. |
 | 4 | Which recoil definitions | Model the ones that are filled and used; the set is listed in §13. |
 | 5 | Overlay conditions as context | Measured negligible effect; **dropped from v1 context**, marginalized (§13.2). |
@@ -323,9 +323,9 @@ record. Nothing generator-specific is allowed in. Steps:
 
 1. Keep only CC nu_mu events (for MC: `mc_current == 1`, `mc_incoming == 14`). NC, nu_e, and antineutrino events
    are out of scope for v1.
-2. Drop neutrinos, GENIE pseudo-particles (2000000101), nuclear remnants (PDG > 1e9), and **neutrons**.
-3. Drop hadrons (p, pi±, pi0, K, hyperons) with KE < 50 MeV. Leptons and photons are not cut.
-4. Map PDG to a species class: mu-, e±, gamma, p, pi+, pi-, pi0, K±, K0(L/S), hyperon, other.
+2. Drop neutrinos, GENIE pseudo-particles (2000000101) and nuclear remnants (PDG > 1e9). Neutrons are kept (since 2026-10-02).
+3. Drop hadrons (p, n, pi±, pi0, K, hyperons) with KE < 10 MeV (was 50 MeV before 2026-10-02). Leptons and photons are not cut.
+4. Map PDG to a species class: mu-, e±, gamma, p, pi+, pi-, pi0, K±, K0(L/S), hyperon, other, n (12 classes).
 
 Context: `vtx_x, vtx_y, vtx_z` (mm), `target_Z`, `target_A`. For MC these are `mc_vtx[0:3]`, `mc_targetZ`,
 `mc_targetA`. `beamConfig` is constant for FHC-only and omitted. Per-spill detector conditions (dead channels,
@@ -336,7 +336,7 @@ new generator the vertex and target are supplied by the user or sampled from the
 ### 13.2 Model interface
 
 **Input**
-- Particle set, variable size `n_true` (≤ ~60 after cuts): per particle `class_id` (int) and `(px, py, pz)`.
+- Particle set, variable size (mean 7.3 tokens, 99% ≤ 51 with the adopted selection): per particle `class_id` (int, 12 classes) and `(px, py, pz)`.
 - Context vector, 5 numbers: `vtx_x, vtx_y, vtx_z, target_Z, target_A`.
 
 **Output** (what the model generates; everything else in the ntuple is derived or copied)
@@ -485,3 +485,22 @@ whole tuple runs unchanged. Those added branches carry no information and must n
   tokens is the next design change.**
 - **Next for M4:** seeds for an uncertainty handle; hold out all 2p 0π final states regardless of mode (out of support);
   then neutron tokens and a re-run of both.
+
+## 18. Input-definition variants and adoption (2026-10-02)
+
+Three input definitions trained on playlist 1A with identical architecture and schedule: 50 MeV without neutrons
+(baseline), 10 MeV without neutrons, 10 MeV with neutrons as a 12th species class.
+
+| 2p2h test events | 50 MeV | 10 MeV | 10 MeV + n |
+|---|---|---|---|
+| closure AUC reco / truth+reco | 0.572 / 0.566 | 0.564 / 0.555 | 0.548 / 0.532 |
+| conditional AUC, calorimetry | 0.566 | 0.550 | 0.532 |
+| W1 recoil / isolated blobs | 0.046 / 0.048 | 0.023 / 0.024 | 0.008 / 0.012 |
+| P(prong) at 0 true charged hadrons, data vs surrogate | 0.07 / 0.00 | 0.07 / 0.00 | 0.07 / 0.07 |
+
+On the full test split the three are identical (AUC 0.528 / 0.525 for all). **Adopted: 10 MeV with neutron tokens**,
+the detector-causal choice; it removes the 2p2h residual (2p2h closure now at the full-sample level). Cost: 7.3
+tokens per event instead of 3.8, about 10 GPU-hours for both stages instead of 3. The canonical model directories
+(`reports/m2_1A`, `reports/m3_1A`) now hold this definition; the previous ones are kept with a `_ke50` suffix and the
+intermediate variant with `_ke10`. Model B (2p2h blind) is retrained with the new definition by
+`scripts/pipeline_adopt_ke10n.sh`, which also regenerates all downstream products.

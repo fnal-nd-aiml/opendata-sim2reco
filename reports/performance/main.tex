@@ -42,8 +42,8 @@ interactions with true vertex $z \ge 4000$\,mm; neutral-current, $\nu_e$ and ant
 scope for this version. \input{../m3_1A/tables/data.tex}
 
 \paragraph{Inputs.} GENIE final-state particles after intranuclear FSI (\texttt{mc\_FSPart*}), dropping
-neutrinos, neutrons, GENIE pseudo-particles and nuclear remnants, and hadrons with kinetic energy below
-50\,MeV. Each particle enters as a species class (11 classes) and its momentum $(p_x, p_y, p_z)$; the context is
+neutrinos, GENIE pseudo-particles and nuclear remnants, and hadrons with kinetic energy below 10\,MeV. Neutrons
+are kept. Each particle enters as a species class (12 classes) and its momentum $(p_x, p_y, p_z)$; the context is
 the true vertex $(x,y,z)$ and the struck nucleus $(Z, A)$. Generator-internal labels (interaction mode, $Q^2$,
 $W$, $E_\nu$) are deliberately not used, so that the surrogate depends only on what physically enters the
 detector and can be applied to final states from any generator.

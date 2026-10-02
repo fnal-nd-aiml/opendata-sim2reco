@@ -48,7 +48,7 @@ def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, l
     out = pathlib.Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed); np.random.seed(seed); t0 = time.time()
     ck0 = torch.load(init_from, map_location="cpu", weights_only=False)["config"]
-    ke_cut_mev = ck0.get("ke_cut_mev", 50.0) if ke_cut_mev is None else ke_cut_mev   # inherit the M2 model's selection
+    ke_cut_mev = ck0.get("ke_cut_mev", 50.0) if ke_cut_mev is None else ke_cut_mev  # old checkpoints predate the key   # inherit the M2 model's selection
     keep_neutrons = ck0.get("keep_neutrons", False) if keep_neutrons is None else keep_neutrons
     d = load_compact(stems, ke_cut_mev=ke_cut_mev, keep_neutrons=keep_neutrons); split = m2.apply_holdout(d, split_by_subrun(d["subrun"], seed=seed), exclude_inttype)
     tf, ptf = fit_transforms(d, split, seed)

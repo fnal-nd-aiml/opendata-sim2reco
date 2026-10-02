@@ -6,7 +6,7 @@ from sim2reco.prep.particles import context_from_tuple, is_cc_numu, select_from_
 
 
 def test_selection_rules(truth):
-    parts = select_from_tuple(truth, ke_cut_mev=50.0)
+    parts = select_from_tuple(truth, ke_cut_mev=50.0, keep_neutrons=False)
     pdg = truth["mc_FSPartPDG"]
     cls = ak.to_numpy(ak.flatten(parts["cls"]))
     assert cls.min() >= 1 and cls.max() < N_CLASSES
@@ -25,6 +25,18 @@ def test_selection_rules(truth):
         sel = parts["cls"] == c
         ke = ak.to_numpy(ak.flatten(np.sqrt(p2[sel] + m**2) - m))
         assert ke.min() >= 50.0 - 1e-6
+
+
+def test_default_selection_admits_neutrons_at_10mev(truth):
+    parts = select_from_tuple(truth)
+    cls = ak.to_numpy(ak.flatten(parts["cls"]))
+    assert (cls == 12).sum() > 0, "neutron tokens expected with the default selection"
+    from sim2reco.prep.particles import pdg_to_mass
+    p2 = parts["px"] ** 2 + parts["py"] ** 2 + parts["pz"] ** 2
+    for c, m in ((4, 938.272), (12, 939.565)):
+        sel = parts["cls"] == c
+        ke = ak.to_numpy(ak.flatten(np.sqrt(p2[sel] + m**2) - m))
+        assert ke.min() >= 10.0 * 0.99  # tuple E vs PDG-mass recomputation differ at the 0.5% level
 
 
 def test_context_shape(truth):

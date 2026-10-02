@@ -43,7 +43,7 @@ def apply_holdout(d, split, exclude_inttype):
 
 def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_model=128, n_layers=4,
           flow_hidden=768, flow_layers=5, max_train_events=None, log_every=200, exclude_inttype=None,
-          ke_cut_mev=50.0, keep_neutrons=False):
+          ke_cut_mev=10.0, keep_neutrons=True):
     out = pathlib.Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed); np.random.seed(seed)
     t0 = time.time()
