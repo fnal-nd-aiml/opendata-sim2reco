@@ -1,0 +1,18 @@
+\begin{tabular}{lccc}
+\toprule
+ & baseline & ke10 & ke10n \\
+\midrule
+closure AUC, reco only & 0.527 & 0.528 & 0.528 \\
+closure AUC, truth + reco & 0.525 & 0.525 & 0.524 \\
+cond.\ AUC calorimetry block & 0.522 & 0.521 & 0.523 \\
+single-variable AUC: isolated blobs & 0.522 & 0.523 & 0.525 \\
+single-variable AUC: non-vertex 100\,mm & 0.507 & 0.508 & 0.508 \\
+single-variable AUC: recoil & 0.501 & 0.501 & 0.502 \\
+prong closure AUC (summary / + truth) & 0.519 / 0.512 & 0.517 / 0.511 & 0.518 / 0.511 \\
+reconstruction log loss & 0.3396 & 0.3395 & 0.3389 \\
+multiplicity log loss & 0.8050 & 0.8037 & 0.8018 \\
+$W_1$ $\log E_\mathrm{recoil}$ / isolated blobs & 0.002 / 0.003 & 0.003 / 0.004 & 0.003 / 0.004 \\
+P(prong $\ge 1$) at 0 true charged hadrons (data / surrogate) & 0.47 / 0.47 & 0.47 / 0.47 & 0.47 / 0.48 \\
+test events & 1,149,228 & 1,149,228 & 1,149,228 \\
+\bottomrule
+\end{tabular}
