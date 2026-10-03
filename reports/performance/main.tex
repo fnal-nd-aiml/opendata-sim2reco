@@ -449,6 +449,23 @@ threshold lowered to 10\,MeV) brings the 2p2h closure of model A from \nHoldAAUC
 retrained with the adopted definition follows (\nHBAUCmarg{} / \nHBAUCcond{}). The residual was a limitation of
 the input definition, not of the extrapolation, and it is closed.
 
+\paragraph{How large is the loss of fidelity, and is it resolved?} The surrogate represents the aleatoric
+spread of reconstruction by construction, but it has no epistemic component: one set of weights, no ensemble,
+no signal that an input is far from the training support. The fidelity cost of blindness therefore has to be
+measured. Three classifiers were trained on the same \nHtest{} held-out events, with a bootstrap over the
+classifier's test half for the evaluation error (\nUnBoot{} resamples, 68\% intervals): open dataset against A
+reaches AUC \nUDAMarg{} [\nUDAMargLo{}, \nUDAMargHi{}] on the reconstructed vector and \nUDACond{}
+[\nUDACondLo{}, \nUDACondHi{}] with the truth features; open dataset against B, \nUDBMarg{} [\nUDBMargLo{},
+\nUDBMargHi{}] and \nUDBCond{} [\nUDBCondLo{}, \nUDBCondHi{}]; and A directly against B, \nUABMarg{}
+[\nUABMargLo{}, \nUABMargHi{}] and \nUABCond{} [\nUABCondLo{}, \nUABCondHi{}]. Two conclusions follow. The
+blind model's output is about as distinguishable from the informed model's as either is from the data, so the
+fidelity lost by blindness is of the same order as the fidelity lost by the surrogate itself, a few hundredths in
+AUC. And that order is also the run-to-run variation: the ordering of A and B changes between independent
+evaluations (sampling draws and classifier splits), by about 0.01--0.03 in AUC, more than the bootstrap
+intervals of a single evaluation. Differences below that are not resolved with one seed per model; resolving
+them, and obtaining an epistemic flag for extrapolation, requires an ensemble of seeds, which is the deferred
+part of this milestone.
+
 \paragraph{Scope of the conclusion.} A single seed per model was trained, so differences below about 0.01 in
 AUC are not resolved. The result establishes that the response transfers across a composition shift within
 covered support, which is the common case for generator comparisons; it does not establish extrapolation to
