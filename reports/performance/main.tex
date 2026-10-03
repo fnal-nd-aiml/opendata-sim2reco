@@ -507,6 +507,77 @@ neutrons (ke10), 10\,MeV with neutron tokens (ke10n).}
 \label{tab:var-2p2h}
 \end{table}
 
+\section{Epistemic uncertainty from Bayesian last layers}
+\label{sec:bayes}
+
+The surrogate as described so far represents the aleatoric spread of reconstruction but not its own
+ignorance. To give it an epistemic component without retraining, the final linear layer of every head is
+given a Gaussian posterior over its weights while the rest of the network is frozen (Fig.~\ref{fig:schematic},
+purple). For the two flows the flow-matching objective is a linear regression of the target velocity on the
+last-layer features, so the posterior is the exact Bayesian-linear-regression posterior,
+$\Sigma_o = (\lambda I + H^\top H/s_o^2)^{-1}$ per output $o$, with the noise $s_o^2$ from the residual and the
+prior $\lambda$ from the Gaussian evidence; this is the optimum a variational Bayesian last layer converges to
+with a fixed backbone. For the classification heads the Laplace approximation of the last layer is used. One
+pass over two million training events fits all five layers in about a minute. Two epistemic quantities follow
+per event: the variance of a head's logit, $h^\top \Sigma h$, and for a generated event-flow sample the
+first-order variance of the final state under a weight perturbation held fixed along the trajectory,
+$g_o^\top \Sigma_o g_o$ with $g_o = \sum_s \Delta t\, h_s$. Drawing $K$ weight samples and regenerating gives
+the epistemic spread of any binned prediction.
+
+\paragraph{Does the flag detect the held-out mode?} No, and it should not. Fitted on the 2p2h-blind model B,
+the per-event variances on the \nBayBnOOD{} 2p2h test events separate from those on \nBayBnCtl{} in-distribution
+control events with AUC \nBayBExistAUC{} (reconstruction flag), \nBayBCardAUC{} (multiplicity) and
+\nBayBFlowAUC{} (event flow); the informed model A gives \nBayAExistAUC{}, \nBayACardAUC{} and \nBayAFlowAUC{} on
+the same events (Fig.~\ref{fig:bayes-flags}). The mild separation is therefore a property of 2p2h inputs, not
+of blindness, and it agrees with Sections~\ref{sec:holdout}: 2p2h final states lie inside the training support,
+model B reproduces them as well as A does, and the model's own uncertainty says so.
+
+\paragraph{Can the flag detect anything?} The positive control of Fig.~\ref{fig:bayes-pc} perturbs in-distribution
+events into regions the training data cannot contain. Moving the vertex far upstream raises the epistemic variance
+of the reconstruction flag by a factor \nPCVtxExistRatio{} (detection AUC \nPCVtxExistAUC{}), of the multiplicity
+logits by \nPCVtxCardRatio{} (\nPCVtxCardAUC{}) and of the event-flow sample by \nPCVtxFlowRatio{} (\nPCVtxFlowAUC{}).
+Scaling all hadron momenta by four or tripling the hadron tokens changes the variances by only
+\nPCPfourExistRatio{} and \nPCTokthreeExistRatio{} (AUC \nPCPfourExistAUC{}, \nPCTokthreeExistAUC{}). The flag
+responds to an unfamiliar context but hardly to unfamiliar kinematics or multiplicity, because the set encoder
+maps those into feature regions it has seen: momenta enter through a saturating $\mathrm{asinh}$ and the global
+token is dominated by the context. This is the known limitation of last-layer methods, which see novelty only
+through the last-layer features, and it applies to any model of this kind, including the variational Bayesian
+last-layer model used elsewhere in this programme. It also indicates the remedy for kinematic extrapolation:
+Bayesian treatment deeper in the network, or an input-space novelty score alongside the last-layer one.
+
+\paragraph{Is the uncertainty calibrated?} For binned predictions (efficiency versus true hadron count, mean
+log recoil energy versus true hadronic kinetic energy, muon momentum ratio versus true momentum), $K=8$
+posterior weight draws give the epistemic spread, and the pull against the open dataset is the difference
+divided by the epistemic and statistical errors in quadrature. For model B on the held-out 2p2h events the pull
+RMS over \nBayBOODBins{} bins is \nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$; on the
+control sample \nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}
+(Fig.~\ref{fig:bayes-cal}). The median ratio of epistemic to statistical error is \nBayBOODEpiStat{} on 2p2h and
+\nBayBCtlEpiStat{} on the control, so the epistemic band is a minor contribution where the model is inside its
+support and the agreement with the open dataset is governed by the model's residual imperfection rather than by
+its parameter uncertainty.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_flags_B.png}
+\caption{Per-event epistemic variances of the 2p2h-blind model B on held-out 2p2h events and on in-distribution
+control events: reconstruction-flag logit, multiplicity logits, event-flow sample.}
+\label{fig:bayes-flags}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_positive_control_B.png}
+\caption{Positive control: the same variances for nominal control events and for the same events perturbed out
+of the training support (hadron momenta $\times 4$, hadron tokens $\times 3$, vertex moved to $z = 2500$\,mm, and
+all three).}
+\label{fig:bayes-pc}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_B.png}
+\caption{Calibration of model B: binned recoil energy and efficiency with the epistemic band from 8 posterior
+draws against the open dataset, on 2p2h and on control events, and the pull distributions.}
+\label{fig:bayes-cal}
+\end{figure}
+
 \section{Known limitations}
 \label{sec:limits}
 
@@ -521,6 +592,10 @@ neutrons (ke10), 10\,MeV with neutron tokens (ke10n).}
 \item \textbf{Scope.} CC~$\nu_\mu$, ME FHC playlist 1A, true vertex $z \ge 4000$\,mm, one training seed.
   The holdout of Section~\ref{sec:holdout} tests a composition shift within covered support; extrapolation to
   final states absent from training is not tested.
+\item \textbf{Epistemic uncertainty.} The Bayesian last layers of Section~\ref{sec:bayes} are calibrated and flag an
+  unfamiliar context, but they do not flag unfamiliar kinematics or multiplicity, which the encoder normalises
+  into familiar features. A kinematic extrapolation can therefore pass unflagged; an input-space novelty score or a
+  Bayesian treatment deeper in the network would be needed to catch it.
 \end{itemize}
 
 \appendix

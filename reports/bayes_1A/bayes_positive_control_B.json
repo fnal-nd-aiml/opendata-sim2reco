@@ -1,0 +1,58 @@
+{
+ "p_x4": {
+  "exist": {
+   "median_ratio": 1.080363392829895,
+   "auc_vs_nominal": 0.5319608072222222
+  },
+  "card": {
+   "median_ratio": 1.1705187559127808,
+   "auc_vs_nominal": 0.5416218022222222
+  },
+  "flow": {
+   "median_ratio": 1.025199294090271,
+   "auc_vs_nominal": 0.5093389344444443
+  }
+ },
+ "tokens_x3": {
+  "exist": {
+   "median_ratio": 1.148432731628418,
+   "auc_vs_nominal": 0.5676583811111111
+  },
+  "card": {
+   "median_ratio": 1.1207168102264404,
+   "auc_vs_nominal": 0.5357762961111111
+  },
+  "flow": {
+   "median_ratio": 1.044052243232727,
+   "auc_vs_nominal": 0.5251378472222222
+  }
+ },
+ "vtx_upstream": {
+  "exist": {
+   "median_ratio": 17.198516845703125,
+   "auc_vs_nominal": 0.9967650194444444
+  },
+  "card": {
+   "median_ratio": 8.439165115356445,
+   "auc_vs_nominal": 0.9715029555555555
+  },
+  "flow": {
+   "median_ratio": 2.221111536026001,
+   "auc_vs_nominal": 0.843711415
+  }
+ },
+ "all": {
+  "exist": {
+   "median_ratio": 15.21779727935791,
+   "auc_vs_nominal": 0.9956660761111112
+  },
+  "card": {
+   "median_ratio": 8.683582305908203,
+   "auc_vs_nominal": 0.97509315
+  },
+  "flow": {
+   "median_ratio": 2.0187761783599854,
+   "auc_vs_nominal": 0.8206445305555556
+  }
+ }
+}

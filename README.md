@@ -5,7 +5,7 @@ reconstructed variables, trained on the [MINERvA open data](https://minerva.fnal
 extrapolate to final states the released MC does not cover (alternative generators, higher multiplicity, new
 kinematic regions).
 
-Status: M0 (data pipeline), M1 (baselines) and M2 (set encoder + flow-matching surrogate, closure AUC 0.57) done; M3 (prong set model + vertex-plane head) done; 2p2h holdout done on playlist 1A; input definition adopted: 10 MeV threshold with neutron tokens (variant study in `reports/variants_1A`). Out-of-support holdout next. Read [`docs/PROJECT.md`](docs/PROJECT.md) first; performance numbers are in `reports/performance/main.tex` (compiled with tectonic; describes the current model, not the milestone history).
+Status: M0 (data pipeline), M1 (baselines) and M2 (set encoder + flow-matching surrogate, closure AUC 0.57) done; M3 (prong set model + vertex-plane head) done; 2p2h holdout done on playlist 1A; input definition adopted: 10 MeV threshold with neutron tokens (variant study in `reports/variants_1A`); Bayesian last layers give calibrated epistemic uncertainty (`reports/bayes_1A`). Out-of-support holdout next. Read [`docs/PROJECT.md`](docs/PROJECT.md) first; performance numbers are in `reports/performance/main.tex` (compiled with tectonic; describes the current model, not the milestone history).
 
 ## Model schematic
 
@@ -30,6 +30,8 @@ python scripts/conform_ntuple.py out.root MasterAnaDev_data_AnaTuple_run00010255
                                                            # optional: full 3,687-branch schema + Meta tree, unmodelled branches at their sentinel defaults
 bash scripts/pipeline_1A.sh                                 # unattended: slim-wait, caches, M1, model A, 2p2h-blind model B, evaluations
 python scripts/holdout_compare.py reports/holdout_2p2h_1A --a reports/m3_1A_on2p2h --b reports/m3_1A_no2p2h_on2p2h --b-control reports/m3_1A_no2p2h_control --a-full reports/m3_1A
+python scripts/fit_bayes_last.py reports/m3_1A                  # Bayesian last layers on the frozen model (~1 min)
+python scripts/bayes_uncertainty_eval.py reports/bayes_1A --model reports/m3_1A_no2p2h --tag _B   # epistemic flag + calibration
 pytest -q                                                  # round-trip tests (ROOT file or its slimmed Parquet)
 (cd reports/performance && tectonic -X compile main.tex)   # performance report PDF
 ```

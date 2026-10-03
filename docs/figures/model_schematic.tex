@@ -12,6 +12,7 @@
 \definecolor{ccls}{HTML}{D55E00}   % classification heads
 \definecolor{cgen}{HTML}{E69F00}   % generative heads
 \definecolor{cout}{HTML}{555555}   % decoder / output
+\definecolor{cbay}{HTML}{7B3294}   % Bayesian last layers (epistemic uncertainty)
 \tikzset{
   box/.style={draw=ink, line width=1.2pt, rounded corners=3pt, fill=paper, align=left, inner sep=6pt, font=\small, text=ink},
   head/.style={box, text width=84mm},
@@ -44,33 +45,39 @@
 % ---------------- classification heads ----------------
 \node[head, draw=ccls, right=14mm of enc.east, anchor=west, yshift=24mm] (t0) {\textbf{Event flag heads} (MLPs on $z$)\\
   $p(\text{reco muon candidate}\mid z)$, $p(\text{MINOS matched}\mid z)$,\\
-  $p(\text{charge}<0\mid z)$ \hfill 3 Bernoulli};
+  $p(\text{charge}<0\mid z)$ \hfill 3 Bernoulli\\
+  \textcolor{cbay}{last layer: Gaussian posterior (Laplace, frozen backbone)}};
 \node[head, draw=ccls, below=8mm of t0.south west, anchor=north west] (card) {\textbf{Hadron multiplicity head} (MLP on $z$)\\
   $p(N_\text{prongs}\mid z)$, $N\in\{0,\dots,8\}$ \hfill categorical\\
-  sampled $N$ fixes the number of prong tokens below};
+  sampled $N$ fixes the number of prong tokens below\\
+  \textcolor{cbay}{last layer: Gaussian posterior (Laplace)}};
 \node[head, draw=ccls, below=8mm of card.south west, anchor=north west] (vtx) {\textbf{Vertex-plane head} (MLP)\\
   in: $c_1$, phase of true $z$ in the 22\,mm plane cycle\\
-  out: 9 classes: unsnapped / plane $\delta\!\in\![-3,3]$ / far plane};
+  out: 9 classes: unsnapped / plane $\delta\!\in\![-3,3]$ / far plane\\
+  \textcolor{cbay}{last layer: Gaussian posterior (Laplace)}};
 
 % ---------------- generative heads ----------------
 \node[head, draw=cgen, below=8mm of vtx.south west, anchor=north west] (t1) {\textbf{Event flow} (conditional flow matching, 9-d)\\
   $x_1 = $ muon $(\log P/P_\text{true},\ \Delta\theta_x,\ \Delta\theta_y)$,\\
   \hphantom{$x_1 = $} vertex residual $(\Delta x,\Delta y,\Delta z)$,\\
   \hphantom{$x_1 = $} $\log E$: recoil, non-vertex $100$\,mm, isolated blobs\\
-  velocity MLP 5$\times$768; cond.\ $c_1=[z,\ \text{flags},\ \text{emb}(N)]$};
+  velocity MLP 5$\times$768; cond.\ $c_1=[z,\ \text{flags},\ \text{emb}(N)]$\\
+  \textcolor{cbay}{output layer: exact Bayesian-linear-regression posterior}};
 \node[head, draw=cgen, below=8mm of t1.south west, anchor=north west] (t2) {\textbf{Prong set flow} (masked flow matching, $N\times 10$)\\
   \textbf{second transformer} (3 layers) over the $N$ prong tokens\\
   self-attention over prongs, cross-attention to $h_i$\\
   per prong: has-kinematics, $\hat u$ (3), $\log P_\pi$, proton fit,\\
   \hphantom{per prong:} $\log P_p$, logit score, exiting, primary\\
-  binary fields dequantised; cond.\ $[c_1,\ x_1]$};
+  binary fields dequantised; cond.\ $[c_1,\ x_1]$\\
+  \textcolor{cbay}{output layer: exact Bayesian-linear-regression posterior}};
 
 % ---------------- decoder / output ----------------
 \node[box, draw=cout, right=22mm of t1.east, anchor=west, yshift=-6mm] (dec) {\textbf{Decoder}\\
   inverse transforms (asinh, log, ratio tables)\\
   vertex $z$: snap to plane if class $>0$\\
   prong table $\to$ pion/proton/sec-proton blocks\\
-  beam-frame angles, on-shell $E$, fill values};
+  beam-frame angles, on-shell $E$, fill values\\
+  \textcolor{cbay}{+ per-event epistemic variance ($h^\top\Sigma h$, $g^\top\Sigma g$)}};
 \node[box, draw=cout, below=of dec] (nt) {\textbf{Pruned ntuple, open-dataset format}\\
   80 branches, same names / types / \texttt{\_sz}\\
   as the open-data tuple};
@@ -103,7 +110,7 @@
 
 % ---------------- legend ----------------
 \node[dim, below=6mm of t2.south west, anchor=north west, align=left] {
-  solid $=$ data flow;\quad dashed $=$ conditioning on sampled quantities;\quad dotted $=$ cross-attention to token states.\\
+  solid $=$ data flow;\quad dashed $=$ conditioning on sampled quantities;\quad dotted $=$ cross-attention to token states;\quad \textcolor{cbay}{purple $=$ Bayesian last layers fitted on the frozen model (epistemic uncertainty)}.\\
   Sampling order: flags $\to$ multiplicity $N$ $\to$ vertex class $\to$ event flow $\to$ prong set flow ($N$ tokens) $\to$ decoder.
   Training: joint, all losses, warm start of the prong flow from the event-level model.};
 
