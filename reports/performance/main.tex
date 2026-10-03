@@ -372,7 +372,9 @@ simulation does not contain. The first test of that claim holds out an entire in
 (B) is trained from scratch with all 2p2h events (GENIE mode 8, \nHtwoP{} events, 2.8\% of the population)
 removed from training and validation, while the model of Sections~\ref{sec:model}--\ref{sec:perf} (A) saw them.
 Both are evaluated on the same \nHtest{} 2p2h test events against the open dataset's own reconstruction of those
-events; B is also evaluated on the non-2p2h test events as a control. Neither model receives the interaction
+events; B is also evaluated on the non-2p2h test events as a control. The models use the adopted input
+definition of Section~\ref{sec:inputdef}; the same study was first run with the original definition, and that
+result is kept below because it is what identified the input problem. Neither model receives the interaction
 mode as input, so the test asks whether the detector response learned from QE, resonant and deep-inelastic
 final states transfers to 2p2h final states.
 
@@ -434,22 +436,59 @@ model A and the blind model B.}
 \label{fig:hold-mult}
 \end{figure}
 
-\paragraph{What the residual is.} Both models differ from the open dataset on 2p2h by about the same amount,
-and more than on the full test split (AUC \nHAAUCmarg{} against \nHFullAUCmarg{}). The per-block and per-variable
-classifiers locate the difference in the calorimetric block (conditional AUC \nHACalo{} for A, \nHBCalo{} for B)
-and specifically in the isolated-blob energy, and the multiplicity matrices show it too: 2p2h events with no
-true charged hadron after the cuts have a reconstructed prong 7\% of the time in the open dataset and never in
-either surrogate. Both point at the same cause. 2p2h produces a neutron in about half of its final states, and
-neutrons are dropped from the surrogate's input (design decision 2); the calorimetric activity and the
-occasional fake prong they produce are then unexplained by anything the model can see, and 2p2h is the mode
-where that matters most. The residual is a limitation of the input definition, not of the extrapolation, and
-the obvious remedy is to let neutrons in as tokens.
+\paragraph{What the residual was, and how it was removed.} With the original input definition (hadrons above
+50\,MeV, neutrons dropped) both models differed from the open dataset on 2p2h by about the same amount
+(AUC \nHoldAAUCmarg{} and \nHoldBAUCmarg{} against \nHoldFullAUCmarg{} on the full split), and the per-block
+classifiers located the difference in the calorimetric block (conditional AUC \nHoldACalo{}) and in fake prongs of
+events with no true charged hadron, which the open dataset produces 7\% of the time and the surrogates never did.
+Both pointed at the neutron that 2p2h emits in about half of its final states, invisible to a model whose input
+excludes neutrons. Section~\ref{sec:inputdef} tests this directly: admitting neutrons as tokens (with the
+threshold lowered to 10\,MeV) brings the 2p2h closure of model A from \nHoldAAUCmarg{} / \nHoldAAUCcond{} to
+\nHAAUCmarg{} / \nHAAUCcond{}, the calorimetric block from \nHoldACalo{} to \nHACalo{}, the recoil $W_1$ from
+\nHoldAWoneRecoil{} to \nHAWoneRecoil{}, and reproduces the neutron-induced fake prongs; the blind model B
+retrained with the adopted definition follows (\nHBAUCmarg{} / \nHBAUCcond{}). The residual was a limitation of
+the input definition, not of the extrapolation, and it is closed.
 
 \paragraph{Scope of the conclusion.} A single seed per model was trained, so differences below about 0.01 in
 AUC are not resolved. The result establishes that the response transfers across a composition shift within
 covered support, which is the common case for generator comparisons; it does not establish extrapolation to
 final states absent from training, for which the natural next test is to hold out all two-proton, pion-less
 events regardless of mode.
+
+\section{Input definition: threshold and neutrons}
+\label{sec:inputdef}
+
+The first version of the surrogate dropped neutrons from the input and cut hadrons below 50\,MeV of kinetic
+energy. The holdout of Section~\ref{sec:holdout} suggested that this, not the model, limited the 2p2h fidelity.
+Three definitions were therefore trained with identical architecture and schedule on the same files: the original
+one, a 10\,MeV threshold without neutrons, and a 10\,MeV threshold with neutrons admitted as a twelfth species
+class (the threshold applies to neutrons too). Tables~\ref{tab:var-full} and~\ref{tab:var-2p2h} give the result on
+the full test split and on the 2p2h test events.
+
+On the full split the three are indistinguishable (closure AUC \nVKEfiftyFullAUCmarg{}, \nVKEtenFullAUCmarg{},
+\nVKEtennFullAUCmarg{}). On 2p2h the improvement is monotonic and lands on the quantities the holdout had flagged:
+the closure AUC with truth features goes \nVKEfiftyTwoPAUCcond{} $\to$ \nVKEtenTwoPAUCcond{} $\to$
+\nVKEtennTwoPAUCcond{}, the calorimetric block \nVKEfiftyTwoPCalo{} $\to$ \nVKEtenTwoPCalo{} $\to$
+\nVKEtennTwoPCalo{}, the recoil $W_1$ \nVKEfiftyTwoPWoneRecoil{} $\to$ \nVKEtenTwoPWoneRecoil{} $\to$
+\nVKEtennTwoPWoneRecoil{}, and the probability of a reconstructed prong in events with no true charged hadron,
+\nVKEfiftyTwoPFakeReal{} in the open dataset, is \nVKEfiftyTwoPFakeSur{} and \nVKEtenTwoPFakeSur{} for the two
+neutron-less definitions and \nVKEtennTwoPFakeSur{} with neutrons. Lowering the threshold recovers soft protons that
+still deposit energy; admitting neutrons accounts for the rest and for the fake prongs. The 10\,MeV definition with
+neutrons is adopted for everything reported in this document. Its cost is compute: 7.3 tokens per event instead of
+3.8, about three times the training time.
+
+\begin{table}[h]\centering\small
+\resizebox{\textwidth}{!}{\input{../variants_1A/tables/variants_full.tex}}
+\caption{Input-definition variants on the full test split: 50\,MeV without neutrons (ke50), 10\,MeV without
+neutrons (ke10), 10\,MeV with neutron tokens (ke10n).}
+\label{tab:var-full}
+\end{table}
+
+\begin{table}[h]\centering\small
+\resizebox{\textwidth}{!}{\input{../variants_1A/tables/variants_2p2h.tex}}
+\caption{The same variants on the 2p2h test events.}
+\label{tab:var-2p2h}
+\end{table}
 
 \section{Known limitations}
 \label{sec:limits}
@@ -462,9 +501,6 @@ events regardless of mode.
   widths of about 3\% and 10\%). Analyses that depend on that scatter should use \texttt{recoil\_E}.
 \item \textbf{No truth-matched prongs.} The tuple's per-prong truth match is used only to validate the training
   data. A per-prong pointer head over the particle tokens would provide it.
-\item \textbf{Neutrons.} Dropping neutrons from the input leaves their calorimetric activity and occasional fake
-  prongs unexplained; the 2p2h holdout (Section~\ref{sec:holdout}) shows this is the dominant residual for
-  neutron-rich final states. Re-admitting neutrons as tokens is the first design change to make.
 \item \textbf{Scope.} CC~$\nu_\mu$, ME FHC playlist 1A, true vertex $z \ge 4000$\,mm, one training seed.
   The holdout of Section~\ref{sec:holdout} tests a composition shift within covered support; extrapolation to
   final states absent from training is not tested.
@@ -483,7 +519,9 @@ million reconstructed events have NaN or infinite muon momenta or vertices, one 
 $10^{14}$\,mm. (5)~The two calibrated recoil branches are point masses in ratio to \texttt{recoil\_E}. (6)~The
 reconstructed vertex $z$ is quantised to plane positions for \nSnapReal{} of events, and the plane chosen depends on the
 true $z$'s phase within the 22\,mm cycle. (7)~Broad tails (unmatched muons, vertex residuals) must be compressed,
-not clipped: clipping at $\pm 12$ robust $\sigma$ put 9--17\% of those variables on the clip boundary.
+not clipped: clipping at $\pm 12$ robust $\sigma$ put 9--17\% of those variables on the clip boundary. (8)~Dropping
+neutrons or soft protons from the input is not harmless: 2p2h final states were the mode where their
+calorimetric activity and fake prongs showed up as an unexplained residual (Section~\ref{sec:inputdef}).
 
 \begin{thebibliography}{9}
 \bibitem{opendata} MINERvA Collaboration, Open Data Release, \url{https://minerva.fnal.gov/opendata/},
