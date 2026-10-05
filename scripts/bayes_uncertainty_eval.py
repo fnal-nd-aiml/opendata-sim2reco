@@ -64,7 +64,7 @@ for ax, k, lab in zip(axs, ["exist", "card", "flow"], ["epistemic var., reco-exi
 plots.save(fig, out / "figures" / f"bayes_flags{a.tag}.png")
 
 # ---------- calibration with K posterior draws ----------
-def binned(idx, draws):
+def binned(idx, draws, medges=None):
     """For each posterior draw: sample Tier 0, multiplicity and the event flow with perturbed last layers; return
     binned means of several observables against truth variables (fine binning; bins need >= 30 events)."""
     reco_real = d["reco_exists"][idx]; ir = idx[reco_real]
@@ -88,7 +88,23 @@ def binned(idx, draws):
         "muP_vs_P": (muP[reco_real][valid], xr[:, 0], p_edges, "true muon momentum [GeV]", "mean log P ratio [model space]"),
         "dthx_vs_P": (muP[reco_real][valid], xr[:, 1], p_edges, "true muon momentum [GeV]", "mean dtheta_x [model space]"),
     }
+    preds_m, pstat_m = {}, {}
     real = {k: bin_mean(v[0], v[1], v[2]) for k, v in spec.items()}
+    # marginal histograms of the observables themselves: fraction of reconstructed events per bin, binomial error
+    def marg_edges(y, n=40):
+        lo, hi = np.nanpercentile(y, [0.5, 99.5]); return np.linspace(lo, hi, n + 1)
+    if medges is None: medges = {"marg_nprong": np.arange(-0.5, 9.5, 1), "marg_recoil": marg_edges(xr[:, 6]), "marg_nonvtx100": marg_edges(xr[:, 7]), "marg_blobs": marg_edges(xr[:, 8]), "marg_muP": marg_edges(xr[:, 0]), "marg_dthx": marg_edges(xr[:, 1])}
+    mspec = {"marg_nprong": (nreal[reco_real], medges["marg_nprong"], "reco prongs", "fraction of reco events"),
+             "marg_recoil": (xr[:, 6], medges["marg_recoil"], "log recoil_E [model space]", "fraction of reco events"),
+             "marg_nonvtx100": (xr[:, 7], medges["marg_nonvtx100"], "log non-vertex E [model space]", "fraction of reco events"),
+             "marg_blobs": (xr[:, 8], medges["marg_blobs"], "log isolated-blob E [model space]", "fraction of reco events"),
+             "marg_muP": (xr[:, 0], medges["marg_muP"], "log P ratio [model space]", "fraction of reco events"),
+             "marg_dthx": (xr[:, 1], medges["marg_dthx"], "dtheta_x [model space]", "fraction of reco events")}
+    def bin_frac(y, edges):
+        y = y[np.isfinite(y)]; n = len(y); c = np.histogram(y, edges)[0]; f = c / max(n, 1)
+        f = np.where(c >= 30, f, np.nan); return f, np.sqrt(np.clip(f * (1 - f) / max(n, 1), 0, None))
+    mreal = {k: bin_frac(v[0], v[1]) for k, v in mspec.items()}
+    for k in mspec: preds_m[k] = []; pstat_m[k] = []
     ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in spec}; pstat = {k: [] for k in spec}
     W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "card", "flow")}
     gen = torch.Generator(device=dev); gen.manual_seed(123)
@@ -105,6 +121,8 @@ def binned(idx, draws):
                       "recoil_vs_ke": bin_mean(kv, Sv[:, 2 + 6], ke_edges), "nonvtx100_vs_ke": bin_mean(kv, Sv[:, 2 + 7], ke_edges), "blobs_vs_ke": bin_mean(kv, Sv[:, 2 + 8], ke_edges),
                       "muP_vs_P": bin_mean(pv_, Sv[:, 2 + 0], p_edges), "dthx_vs_P": bin_mean(pv_, Sv[:, 2 + 1], p_edges)}
             for k, (m_, e_) in draws_.items(): preds[k].append(m_); pstat[k].append(e_)
+            mdraws = {"marg_nprong": npr[reco_real], "marg_recoil": Sv[:, 2 + 6], "marg_nonvtx100": Sv[:, 2 + 7], "marg_blobs": Sv[:, 2 + 8], "marg_muP": Sv[:, 2 + 0], "marg_dthx": Sv[:, 2 + 1]}
+            for k, y in mdraws.items(): f_, e_ = bin_frac(y, mspec[k][1]); preds_m[k].append(f_); pstat_m[k].append(e_)
     for k in ("tier0", "card", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
     out_ = {}
     for k, v in spec.items():
@@ -115,17 +133,23 @@ def binned(idx, draws):
         pull = (mu - r_) / np.sqrt(ep ** 2 + stat_s2 / draws + se ** 2)
         e = v[2]; centers = (np.sqrt(e[:-1] * e[1:]) if e[0] > 0 else 0.5 * (e[:-1] + e[1:])).tolist()
         out_[k] = {"centers": centers, "xlabel": v[3], "ylabel": v[4], "logx": bool(e[0] > 0 and e[1] / e[0] > 1.1), "real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "surrogate_stat": np.sqrt(stat_s2).tolist(), "pull": pull.tolist()}
+    for k, v in mspec.items():
+        P = np.array(preds_m[k]); mu = np.nanmean(P, 0); r_, se = mreal[k]; stat_s2 = np.nanmean(np.array(pstat_m[k]) ** 2, 0)
+        ep = np.sqrt(np.clip(np.nanvar(P, 0) - stat_s2, 0, None)); pull = (mu - r_) / np.sqrt(ep ** 2 + stat_s2 / draws + se ** 2)
+        e = v[1]; out_[k] = {"centers": (0.5 * (e[:-1] + e[1:])).tolist(), "edges": e.tolist(), "xlabel": v[2], "ylabel": v[3], "logx": False, "marginal": True, "real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "surrogate_stat": np.sqrt(stat_s2).tolist(), "pull": pull.tolist()}
+    out_["_medges"] = medges
     return out_
 
-C = {"heldout": binned(ood, a.draws), "control": binned(ctl, a.draws)}
-for s_, res in C.items():
+C = {"control": binned(ctl, a.draws)}; C["heldout"] = binned(ood, a.draws, C["control"].pop("_medges")); C["heldout"].pop("_medges"); C = {"heldout": C["heldout"], "control": C["control"]}
+for s_, res_all in C.items():
+  for kind, res in (("", {k: v for k, v in res_all.items() if not v.get("marginal")}), ("_marginal", {k: v for k, v in res_all.items() if v.get("marginal")})):
     pulls = np.concatenate([np.array(v["pull"]) for v in res.values()]); pulls = pulls[np.isfinite(pulls)]
     eps = np.concatenate([np.array(v["epistemic"]) / np.maximum(np.array(v["real_err"]), 1e-9) for v in res.values()]); eps = eps[np.isfinite(eps)]
     # pull without the epistemic term: tells whether the epistemic band is needed at all
     pulls0 = np.concatenate([(np.array(v["pred"]) - np.array(v["real"])) / np.sqrt(np.array(v["surrogate_stat"]) ** 2 / a.draws + np.array(v["real_err"]) ** 2) for v in res.values()]); pulls0 = pulls0[np.isfinite(pulls0)]
-    R[f"calibration_{s_}"] = {"n_bins": int(len(pulls)), "pull_rms": float(np.sqrt(np.mean(pulls ** 2))), "pull_mean": float(pulls.mean()), "frac_abs_pull_lt2": float((np.abs(pulls) < 2).mean()),
+    R[f"calibration_{s_}{kind}"] = {"n_bins": int(len(pulls)), "pull_rms": float(np.sqrt(np.mean(pulls ** 2))), "pull_mean": float(pulls.mean()), "frac_abs_pull_lt2": float((np.abs(pulls) < 2).mean()),
                               "median_epistemic_over_stat": float(np.median(eps)), "pull_rms_no_epistemic": float(np.sqrt(np.mean(pulls0 ** 2)))}
-    print(f"calibration {s_:8s}: {len(pulls)} bins, pull RMS {R[f'calibration_{s_}']['pull_rms']:.2f} (without epistemic term {R[f'calibration_{s_}']['pull_rms_no_epistemic']:.2f}), |pull|<2 in {R[f'calibration_{s_}']['frac_abs_pull_lt2']:.2f}, epistemic/stat median {np.median(eps):.2f}", flush=True)
+    print(f"calibration {s_:8s}{kind:9s}: {len(pulls)} bins, pull RMS {R[f'calibration_{s_}{kind}']['pull_rms']:.2f} (without epistemic term {R[f'calibration_{s_}{kind}']['pull_rms_no_epistemic']:.2f}), |pull|<2 in {R[f'calibration_{s_}{kind}']['frac_abs_pull_lt2']:.2f}, epistemic/stat median {np.median(eps):.2f}", flush=True)
 R["binned"] = C
 json.dump(R, open(out / f"bayes_uncertainty{a.tag}.json", "w"), indent=1, default=float)
 print("done")

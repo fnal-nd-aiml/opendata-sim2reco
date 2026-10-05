@@ -17,6 +17,11 @@ lines = []
 for name, var, key, e, kind in rows:
     nc = int(np.isfinite(U["control"][key]["pull"]).sum()); nh = int(np.isfinite(U["heldout"][key]["pull"]).sum())
     lines.append(f"{name} & {var} & {len(e)-1} & {nc} / {nh} & \\parbox[t]{{7.5cm}}{{\\raggedright\\footnotesize {fmt(e, kind)}}} \\\\")
-tex = ("\\begin{tabular}{llccl}\n\\toprule\nObservable (binned mean) & binned against & bins & populated (control / held-out) & bin edges \\\\\n\\midrule\n" + "\n".join(lines) +
+lines.append("\\midrule\n\\multicolumn{5}{l}{\\emph{Marginal histograms (fraction of reconstructed events per bin, binned in the observable itself)}} \\\\")
+for key, name in (("marg_nprong", "reco prong count"), ("marg_recoil", "$\\log E_\\mathrm{recoil}$"), ("marg_nonvtx100", "$\\log E$ non-vertex 100\\,mm"), ("marg_blobs", "$\\log E$ isolated blobs"), ("marg_muP", "$\\log(P/P_\\mathrm{true})$ muon"), ("marg_dthx", "$\\Delta\\theta_x$ muon")):
+    v = U["control"][key]; e = np.array(v["edges"]); nc = int(np.isfinite(U["control"][key]["pull"]).sum()); nh = int(np.isfinite(U["heldout"][key]["pull"]).sum())
+    edges = "integers 0, 1, \\ldots, 8 (one bin each)" if key == "marg_nprong" else f"{len(e)-1} equal bins from {e[0]:.2f} to {e[-1]:.2f} (model space; 0.5th to 99.5th percentile of the control sample)"
+    lines.append(f"{name} & itself & {len(e)-1} & {nc} / {nh} & \\parbox[t]{{7.5cm}}{{\\raggedright\\footnotesize {edges}}} \\\\")
+tex = ("\\begin{tabular}{llccl}\n\\toprule\nObservable & binned against & bins & populated (control / held-out) & bin edges \\\\\n\\midrule\n" + "\n".join(lines) +
        "\n\\bottomrule\n\\end{tabular}\n")
 (bd / "tables").mkdir(exist_ok=True); (bd / "tables" / "bins.tex").write_text(tex); print(tex)

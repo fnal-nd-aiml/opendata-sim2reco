@@ -93,6 +93,7 @@ sampled by an earlier head, the dotted arrow cross-attention to the particle tok
 \FloatBarrier
 
 \section{Performance}
+\label{sec:performance}
 \label{sec:perf}
 
 \subsection{Event classification heads}
@@ -550,36 +551,61 @@ through the last-layer features, and it applies to any model of this kind, inclu
 last-layer model used elsewhere in this programme. It also indicates the remedy for kinematic extrapolation:
 Bayesian treatment deeper in the network, or an input-space novelty score alongside the last-layer one.
 
-\paragraph{Is the uncertainty calibrated?} Seven binned observables are compared with the open dataset: the
-reconstruction probability and the mean prong count versus the true hadron count, the mean recoil, non-vertex
-and isolated-blob energies versus the true hadronic kinetic energy, and the mean muon momentum ratio and angle
-difference versus the true muon momentum, in 12 to 16 bins each (any binning is admissible; bins only need
-enough events for a mean, and finer bins carry larger statistical errors). $K=8$ posterior weight draws of the
-flag, multiplicity and event-flow output layers are made, each followed by a fresh generation of the sample. The
-across-draw variance of a binned prediction contains two parts, the epistemic variance from the re-drawn weights
-and the surrogate's own sampling noise in that bin (fresh noise per draw); the latter is estimated within each
-draw and subtracted, and since the prediction compared is the mean over the $K$ draws, only $1/K$ of it survives.
-The pull against the open dataset is then the difference divided by the epistemic variance, the surrogate's
-sampling variance over $K$, and the open dataset's statistical variance, in quadrature. (A first version of this
-test put the full across-draw spread in the denominator, which over-counts the surrogate's sampling noise by
-nearly a factor $K$ and produced pull widths of about 0.7; the decomposition above removes that bias.) Both
-models are shown, since the claim to establish is that the \emph{blind} model's uncertainty is calibrated on the
-mode it never saw. Table~\ref{tab:bayes-bins} lists the bins explicitly; a bin enters the pull distribution only if
-it holds at least 30 events in both the open dataset and the surrogate sample, which removes the high-energy and
-high-multiplicity bins of the smaller held-out sample. For model B on the held-out 2p2h events the pull RMS over \nBayBOODBins{} bins is
-\nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$ (95\% expected for a unit normal); on the
-control sample \nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}
-(Fig.~\ref{fig:bayes-cal}; the individual observables in Section~\ref{sec:bayes-binned}). Without the epistemic term the pull
-RMS would be \nBayBOODPullRMSnoEpi{} (B, 2p2h) and \nBayBCtlPullRMSnoEpi{} (B, control): the epistemic band is a
-small part of the budget. In the median bin the across-draw spread is fully accounted for by the surrogate's
-sampling noise, so the epistemic estimate there is consistent with zero; it matters in a minority of bins, mostly
-at the sparsely populated ends of the ranges, where it reaches the statistical error of the open dataset. For
-model B the 90th percentile of the ratio of epistemic to statistical error is \nBayBOODEpiStatPNinety{} on 2p2h
-and \nBayBCtlEpiStatPNinety{} on the control, and the ratio exceeds one half in \nBayBOODEpiStatFracHalf{} and
-\nBayBCtlEpiStatFracHalf{} of the bins. The pull RMS below one on the control sample means the budget is slightly
-conservative there, dominated by the open dataset's statistics; on held-out 2p2h it is close to one. The agreement
-with the open dataset is therefore governed by statistics and by the model's residual imperfection rather than by
-its parameter uncertainty, which is the expected outcome for an interpolation inside the training support.
+\paragraph{Is the uncertainty calibrated?} Two kinds of binned comparison with the open dataset are made, on
+the held-out 2p2h test events (\nBayBnOOD{} events) and on a control sample of in-distribution test events
+(\nBayBnCtl{} events). The first binned observables \emph{against a truth variable}: the reconstruction probability and
+the mean prong count versus the true hadron count, the mean recoil, non-vertex and isolated-blob energies versus
+the true hadronic kinetic energy, and the mean muon momentum ratio and angle difference versus the true muon
+momentum, in 12 to 16 bins each. The second bins the observables \emph{in themselves}: the marginal histograms of
+the prong count, the three energies, the muon momentum ratio and the muon angle difference, as the fraction of
+reconstructed events per bin, in 9 to 40 bins. The distinction matters for what the test can see. A conditional
+mean carries the full spread of the observable within the truth bin as its statistical error, which is large; a
+bin fraction carries only a binomial error, which is small. The first test therefore asks mainly whether the
+surrogate agrees with the open dataset within statistics, the second whether the epistemic band is the right
+size for the disagreement that remains once statistics are no longer limiting.
+
+In both cases $K=8$ posterior weight draws of the flag, multiplicity and event-flow output layers are made, each
+followed by a fresh generation of the sample. The across-draw variance of a binned prediction contains two parts,
+the epistemic variance from the re-drawn weights and the surrogate's own sampling noise in that bin (fresh noise
+per draw); the latter is estimated within each draw and subtracted, and since the prediction compared is the mean
+over the $K$ draws, only $1/K$ of it survives. The pull against the open dataset is the difference divided by the
+epistemic variance, the surrogate's sampling variance over $K$, and the open dataset's statistical variance, in
+quadrature. (A first version of this test put the full across-draw spread in the denominator, which over-counts
+the surrogate's sampling noise by nearly a factor $K$ and produced pull widths of about 0.7; the decomposition
+above removes that bias.) Both models are shown, since the claim to establish concerns the \emph{blind} model on
+the mode it never saw. Table~\ref{tab:bayes-bins} lists all bins explicitly; a bin enters a pull distribution only
+if it holds at least 30 events in both the open dataset and the surrogate sample.
+
+\emph{Conditional means} (Fig.~\ref{fig:bayes-cal}, individual observables in Section~\ref{sec:bayes-binned}).
+For model B on the held-out 2p2h events the pull RMS over \nBayBOODBins{} bins is \nBayBOODPullRMS{} with
+\nBayBOODWithin{} of bins within $|$pull$| < 2$ (95\% expected for a unit normal); on the control sample
+\nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}. Without the
+epistemic term the RMS would be \nBayBOODPullRMSnoEpi{} and \nBayBCtlPullRMSnoEpi{}: the test is dominated by the
+open dataset's statistical error, as the error bars in Figs.~\ref{fig:bb-eff}--\ref{fig:bb-dthx} make plain, and
+it establishes agreement within statistics rather than the size of the epistemic band. In the median bin the
+epistemic estimate is consistent with zero; the ratio of epistemic to statistical error exceeds one half in
+\nBayBOODEpiStatFracHalf{} (2p2h) and \nBayBCtlEpiStatFracHalf{} (control) of the bins for model B, at the
+sparsely populated ends of the ranges.
+
+\emph{Marginal histograms} (Fig.~\ref{fig:bayes-cal-marg}, individual observables in
+Section~\ref{sec:bayes-binned}). Here the per-bin statistical error is small enough that percent-level
+imperfections of the surrogate are resolved, and the pulls widen accordingly: for model B the RMS is
+\nBayBOODMargPullRMS{} over \nBayBOODMargBins{} bins on held-out 2p2h (\nBayBOODMargWithin{} within two) and
+\nBayBCtlMargPullRMS{} over \nBayBCtlMargBins{} bins on the control (\nBayBCtlMargWithin{}), with the largest
+single pull near \nBayBCtlMargMaxPull{}; model A gives \nBayAOODMargPullRMS{} and \nBayACtlMargPullRMS{}. The
+median relative difference between the surrogate's and the open dataset's bin fractions is
+\nBayBCtlMargRelDiffMedian{} on the control and \nBayBOODMargRelDiffMedian{} on 2p2h, and the pulls are largest
+where the surrogate is known to be least faithful (Section~\ref{sec:performance}): the prong-count fractions and
+the tails of the non-vertex and isolated-blob energies. The epistemic band is far below these differences, with
+the across-draw spread consistent with sampling noise in the median bin. The reading is unambiguous: the
+Bayesian last layers quantify the uncertainty of the output weights given the training set, which after two
+million events is small, and they do \emph{not} quantify the model's residual imperfection, which is at the
+percent level on marginal distributions and is the dominant model-side error wherever the open dataset's
+statistics are good enough to see it. The epistemic uncertainty is a floor on the model error, not its total,
+and it should be used as the flag and the parameter-uncertainty component that it is. The control sample being
+at least as far from unit pulls as the held-out 2p2h sample, and the two models agreeing on the 2p2h events, is
+the same conclusion as Section~\ref{sec:holdout} reached from the classifier: the blind model's residual on 2p2h
+is the model's residual, not the blindness.
 
 \paragraph{Uncertainties in the output file.} The ntuple writer attaches the epistemic uncertainties to every
 written event. Two kinds are stored. Analytic, in the model's standardised units and needing no extra sampling:
@@ -625,10 +651,18 @@ value. ``Populated'' counts the bins with at least 30 events on the control and 
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_pulls_AB.png}
-\caption{Summary of the calibration: pull distributions over all seven observables and all populated bins for model
-A (left) and model B (right), on control and on held-out 2p2h events, with a unit normal scaled to the control
-count for reference. The individual observables are in Figs.~\ref{fig:bb-eff}--\ref{fig:bb-dthx}.}
+\caption{Pull summary for the conditional means: all seven observables binned against truth variables, all
+populated bins, model A (left) and model B (right), on control and on held-out 2p2h events, with a unit normal
+scaled to the control count for reference. The individual observables are in Figs.~\ref{fig:bb-eff}--\ref{fig:bb-dthx}.}
 \label{fig:bayes-cal}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_pulls_marginal_AB.png}
+\caption{Pull summary for the marginal histograms: the six observables binned in themselves, all populated bins,
+same layout as Fig.~\ref{fig:bayes-cal}; pulls beyond $\pm 6$ are placed in the end bins. The individual
+observables are in Figs.~\ref{fig:bm-nprong}--\ref{fig:bm-dthx}.}
+\label{fig:bayes-cal-marg}
 \end{figure}
 
 \subsection{Binned comparisons behind the pulls}
@@ -639,11 +673,15 @@ blind model on the right: the reconstruction probability (Fig.~\ref{fig:bb-eff})
 (Fig.~\ref{fig:bb-nprong}) against the true hadron count; the recoil (Fig.~\ref{fig:bb-recoil}), the non-vertex
 energy within 100\,mm (Fig.~\ref{fig:bb-nv100}) and the isolated-blob energy (Fig.~\ref{fig:bb-blobs}) against
 the true hadronic kinetic energy; and the muon momentum ratio (Fig.~\ref{fig:bb-muP}) and $\Delta\theta_x$
-(Fig.~\ref{fig:bb-dthx}) against the true muon momentum. The open dataset is drawn as points
+(Fig.~\ref{fig:bb-dthx}) against the true muon momentum. Then the marginal histograms: the prong count
+(Fig.~\ref{fig:bm-nprong}), the recoil (Fig.~\ref{fig:bm-recoil}), non-vertex (Fig.~\ref{fig:bm-nv100}) and
+isolated-blob (Fig.~\ref{fig:bm-blobs}) energies, the muon momentum ratio (Fig.~\ref{fig:bm-muP}) and
+$\Delta\theta_x$ (Fig.~\ref{fig:bm-dthx}), each binned in itself. The open dataset is drawn as points
 with its statistical error; the surrogate as the mean over the $K$ posterior draws with two bands, the darker
 one the epistemic spread alone and the lighter one the total surrogate-side uncertainty entering the pull, i.e.\
-the epistemic spread and the surrogate's sampling error over $K$ in quadrature. The bins are those of
-Table~\ref{tab:bayes-bins}.
+the epistemic spread and the surrogate's sampling error over $K$ in quadrature. The lower panel of each figure
+shows the difference with the same bands around zero, where the relative size of the open-dataset error and the
+surrogate-side uncertainty can be read directly. The bins are those of Table~\ref{tab:bayes-bins}.
 
 \begin{figure}[h]\centering
 \includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_eff_vs_nhad.png}
@@ -687,6 +725,42 @@ Table~\ref{tab:bayes-bins}.
 \label{fig:bb-dthx}
 \end{figure}
 
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_nprong.png}
+\caption{Marginal distribution of the reconstructed prong count (fraction of reconstructed events).}
+\label{fig:bm-nprong}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_recoil.png}
+\caption{Marginal distribution of $\log E_\mathrm{recoil}$ (model space).}
+\label{fig:bm-recoil}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_nonvtx100.png}
+\caption{Marginal distribution of $\log E$ of the non-vertex energy within 100\,mm (model space).}
+\label{fig:bm-nv100}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_blobs.png}
+\caption{Marginal distribution of $\log E$ of isolated blobs (model space).}
+\label{fig:bm-blobs}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_muP.png}
+\caption{Marginal distribution of the muon $\log(P_\mathrm{reco}/P_\mathrm{true})$ (model space).}
+\label{fig:bm-muP}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_marg_dthx.png}
+\caption{Marginal distribution of the muon $\Delta\theta_x$ (model space).}
+\label{fig:bm-dthx}
+\end{figure}
+
 \FloatBarrier
 
 
@@ -704,10 +778,13 @@ Table~\ref{tab:bayes-bins}.
 \item \textbf{Scope.} CC~$\nu_\mu$, ME FHC playlist 1A, true vertex $z \ge 4000$\,mm, one training seed.
   The holdout of Section~\ref{sec:holdout} tests a composition shift within covered support; extrapolation to
   final states absent from training is not tested.
-\item \textbf{Epistemic uncertainty.} The Bayesian last layers of Section~\ref{sec:bayes} are calibrated and flag an
-  unfamiliar context, but they do not flag unfamiliar kinematics or multiplicity, which the encoder normalises
-  into familiar features. A kinematic extrapolation can therefore pass unflagged; an input-space novelty score or a
-  Bayesian treatment deeper in the network would be needed to catch it.
+\item \textbf{Epistemic uncertainty.} The Bayesian last layers of Section~\ref{sec:bayes} quantify the
+  uncertainty of the output weights and flag an unfamiliar context, but they do not flag unfamiliar kinematics or
+  multiplicity, which the encoder normalises into familiar features, and they do not cover the model's residual
+  imperfection, which is at the percent level on marginal distributions and exceeds the epistemic band wherever
+  the open dataset's statistics resolve it. The written-out uncertainties are therefore a floor on the model
+  error. An input-space novelty score or a Bayesian treatment deeper in the network would be needed for kinematic
+  extrapolation, and a residual-error model (or a seed ensemble) for the total model error.
 \end{itemize}
 
 \appendix
