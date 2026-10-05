@@ -564,15 +564,22 @@ sampling variance over $K$, and the open dataset's statistical variance, in quad
 test put the full across-draw spread in the denominator, which over-counts the surrogate's sampling noise by
 nearly a factor $K$ and produced pull widths of about 0.7; the decomposition above removes that bias.) Both
 models are shown, since the claim to establish is that the \emph{blind} model's uncertainty is calibrated on the
-mode it never saw. For model B on the held-out 2p2h events the pull RMS over \nBayBOODBins{} bins is
+mode it never saw. Table~\ref{tab:bayes-bins} lists the bins explicitly; a bin enters the pull distribution only if
+it holds at least 30 events in both the open dataset and the surrogate sample, which removes the high-energy and
+high-multiplicity bins of the smaller held-out sample. For model B on the held-out 2p2h events the pull RMS over \nBayBOODBins{} bins is
 \nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$ (95\% expected for a unit normal); on the
 control sample \nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}
-(Fig.~\ref{fig:bayes-cal}; all observables in Fig.~\ref{fig:bayes-cal-all}). Without the epistemic term the pull
+(Fig.~\ref{fig:bayes-cal}; the individual observables in Section~\ref{sec:bayes-binned}). Without the epistemic term the pull
 RMS would be \nBayBOODPullRMSnoEpi{} (B, 2p2h) and \nBayBCtlPullRMSnoEpi{} (B, control): the epistemic band is a
-small but real part of the budget where the model is inside its support, and the median ratio of the epistemic
-to the statistical error is \nBayBOODEpiStat{} on 2p2h and \nBayBCtlEpiStat{} on the control. The agreement with
-the open dataset is therefore governed by statistics and by the model's residual imperfection rather than by its
-parameter uncertainty.
+small part of the budget. In the median bin the across-draw spread is fully accounted for by the surrogate's
+sampling noise, so the epistemic estimate there is consistent with zero; it matters in a minority of bins, mostly
+at the sparsely populated ends of the ranges, where it reaches the statistical error of the open dataset. For
+model B the 90th percentile of the ratio of epistemic to statistical error is \nBayBOODEpiStatPNinety{} on 2p2h
+and \nBayBCtlEpiStatPNinety{} on the control, and the ratio exceeds one half in \nBayBOODEpiStatFracHalf{} and
+\nBayBCtlEpiStatFracHalf{} of the bins. The pull RMS below one on the control sample means the budget is slightly
+conservative there, dominated by the open dataset's statistics; on held-out 2p2h it is close to one. The agreement
+with the open dataset is therefore governed by statistics and by the model's residual imperfection rather than by
+its parameter uncertainty, which is the expected outcome for an interpolation inside the training support.
 
 \paragraph{Uncertainties in the output file.} The ntuple writer attaches the epistemic uncertainties to every
 written event. Two kinds are stored. Analytic, in the model's standardised units and needing no extra sampling:
@@ -609,21 +616,79 @@ separates.}
 \label{fig:bayes-pc}
 \end{figure}
 
+\begin{table}[h]\centering\small
+\resizebox{\textwidth}{!}{\input{../bayes_1A/tables/bins.tex}}
+\caption{Bins of the calibration pulls. Logarithmic edges are listed in full; the integer variables use one bin per
+value. ``Populated'' counts the bins with at least 30 events on the control and on the held-out 2p2h sample.}
+\label{tab:bayes-bins}
+\end{table}
+
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_AB.png}
-\caption{Calibration of model A (top, trained with 2p2h) and model B (bottom, 2p2h blind). Left and centre: binned
-recoil energy and reconstruction probability from the surrogate with the epistemic band from 8 posterior draws,
-against the open dataset with its statistical error, on control events and on the held-out 2p2h events. Right:
-pull distributions over all seven observables and all bins, with a unit normal for reference.}
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_pulls_AB.png}
+\caption{Summary of the calibration: pull distributions over all seven observables and all populated bins for model
+A (left) and model B (right), on control and on held-out 2p2h events, with a unit normal scaled to the control
+count for reference. The individual observables are in Figs.~\ref{fig:bb-eff}--\ref{fig:bb-dthx}.}
 \label{fig:bayes-cal}
 \end{figure}
 
+\subsection{Binned comparisons behind the pulls}
+\label{sec:bayes-binned}
+
+Every observable entering the pull summary is shown on its own, with the model that saw 2p2h on the left and the
+blind model on the right: the reconstruction probability (Fig.~\ref{fig:bb-eff}) and the prong count
+(Fig.~\ref{fig:bb-nprong}) against the true hadron count; the recoil (Fig.~\ref{fig:bb-recoil}), the non-vertex
+energy within 100\,mm (Fig.~\ref{fig:bb-nv100}) and the isolated-blob energy (Fig.~\ref{fig:bb-blobs}) against
+the true hadronic kinetic energy; and the muon momentum ratio (Fig.~\ref{fig:bb-muP}) and $\Delta\theta_x$
+(Fig.~\ref{fig:bb-dthx}) against the true muon momentum. The open dataset is drawn as points
+with its statistical error; the surrogate as the mean over the $K$ posterior draws with two bands, the darker
+one the epistemic spread alone and the lighter one the total surrogate-side uncertainty entering the pull, i.e.\
+the epistemic spread and the surrogate's sampling error over $K$ in quadrature. The bins are those of
+Table~\ref{tab:bayes-bins}.
+
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_B_all.png}
-\caption{All seven binned observables for the 2p2h-blind model B, on control and on held-out 2p2h events, with the
-epistemic bands.}
-\label{fig:bayes-cal-all}
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_eff_vs_nhad.png}
+\caption{Reconstruction probability versus the true number of hadrons after cuts.}
+\label{fig:bb-eff}
 \end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_nprong_vs_nhad.png}
+\caption{Mean number of reconstructed prongs versus the true number of hadrons after cuts.}
+\label{fig:bb-nprong}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_recoil_vs_ke.png}
+\caption{Mean $\log E_\mathrm{recoil}$ (model space) versus true hadronic kinetic energy.}
+\label{fig:bb-recoil}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_nonvtx100_vs_ke.png}
+\caption{Mean $\log E$ of the non-vertex energy within 100\,mm (model space) versus true hadronic kinetic energy.}
+\label{fig:bb-nv100}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_blobs_vs_ke.png}
+\caption{Mean $\log E$ of isolated blobs (model space) versus true hadronic kinetic energy.}
+\label{fig:bb-blobs}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_muP_vs_P.png}
+\caption{Mean $\log(P_\mathrm{reco}/P_\mathrm{true})$ of the muon (model space) versus true muon momentum.}
+\label{fig:bb-muP}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\textwidth]{../bayes_1A/figures/bayes_binned_dthx_vs_P.png}
+\caption{Mean $\Delta\theta_x$ of the muon (model space) versus true muon momentum.}
+\label{fig:bb-dthx}
+\end{figure}
+
+\FloatBarrier
+
 
 \section{Known limitations}
 \label{sec:limits}

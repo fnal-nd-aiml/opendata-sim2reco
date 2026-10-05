@@ -76,7 +76,7 @@ def main():
             for k, nm in (("exist", "Exist"), ("card", "Card"), ("flow", "Flow")):
                 fl = U["flags"][k]; M[f"nBay{tag}{nm}AUC"] = f"{fl['ood_auc']:.2f}"; M[f"nBay{tag}{nm}Ratio"] = f"{fl['median_ood']/max(fl['median_control'],1e-12):.2f}"
             for sp, nm in (("heldout", "OOD"), ("control", "Ctl")):
-                c = U[f"calibration_{sp}"]; M[f"nBay{tag}{nm}PullRMS"] = f"{c['pull_rms']:.2f}"; M[f"nBay{tag}{nm}Within"] = f"{100*c['frac_abs_pull_lt2']:.0f}\\%"; M[f"nBay{tag}{nm}EpiStat"] = f"{c['median_epistemic_over_stat']:.2f}"; M[f"nBay{tag}{nm}Bins"] = str(c["n_bins"]); M[f"nBay{tag}{nm}PullRMSnoEpi"] = f"{c.get('pull_rms_no_epistemic', float('nan')):.2f}"
+                c = U[f"calibration_{sp}"]; M[f"nBay{tag}{nm}PullRMS"] = f"{c['pull_rms']:.2f}"; M[f"nBay{tag}{nm}Within"] = f"{100*c['frac_abs_pull_lt2']:.0f}\\%"; M[f"nBay{tag}{nm}EpiStat"] = f"{c['median_epistemic_over_stat']:.2f}"; _r = np.concatenate([(np.array(v["epistemic"], float) / np.array(v["real_err"], float))[np.isfinite(np.array(v["pull"], float)) & (np.array(v["real_err"], float) > 0)] for v in U["binned"][sp].values()]); M[f"nBay{tag}{nm}EpiStatPNinety"] = f"{np.percentile(_r, 90):.2f}"; M[f"nBay{tag}{nm}EpiStatFracHalf"] = f"{100*(_r > 0.5).mean():.0f}\\%"; M[f"nBay{tag}{nm}Bins"] = str(c["n_bins"]); M[f"nBay{tag}{nm}PullRMSnoEpi"] = f"{c.get('pull_rms_no_epistemic', float('nan')):.2f}"
         f = bd / "bayes_positive_control_B.json"
         if f.exists():
             P = json.load(open(f))
