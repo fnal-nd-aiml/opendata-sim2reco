@@ -108,7 +108,7 @@ def main():
         vc = torch.cat(VC).numpy()[exist]
         zs = tf.planes.z_for_class(vc, d["ctx"][exist, 2], y[:, 5]); y[:, 5] = np.where(vc > 0, zs, y[:, 5])
     minos, charge = S[exist, 1] > 0, S[exist, 2] > 0
-    out = {k: truth[k][exist] for k in PASSTHROUGH}
+    out = {k: truth[k][exist] for k in PASSTHROUGH + [c for c in truth.fields if c.startswith("nuwro_")]}  # generator-specific extras pass through
     out.update(decode_muon(y[:, 0], y[:, 1], y[:, 2], minos, charge))
     vtx = np.zeros((exist.sum(), 4)); vtx[:, :3] = y[:, 3:6]
     out["MasterAnaDev_vtx"] = vtx; out["vtx"] = vtx.copy()
