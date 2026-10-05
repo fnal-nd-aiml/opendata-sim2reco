@@ -9,7 +9,7 @@ import argparse, json, pathlib, numpy as np
 def pct(x, d=0): return f"{100*x:.{d}f}\\%"
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("model_dir"); ap.add_argument("out"); ap.add_argument("--m1", default="reports/m1_1A/metrics.json"); ap.add_argument("--holdout", default=None); ap.add_argument("--holdout-old", default=None, help="holdout summary of the previous input definition (50 MeV, no neutrons)"); ap.add_argument("--variants", default=None, help="variants_compare summary.json"); ap.add_argument("--bayes", default=None, help="directory with bayes_uncertainty_{A,B}.json and bayes_positive_control_B.json")
+    ap = argparse.ArgumentParser(); ap.add_argument("model_dir"); ap.add_argument("out"); ap.add_argument("--m1", default="reports/m1_1A/metrics.json"); ap.add_argument("--holdout", default=None); ap.add_argument("--holdout-old", default=None, help="holdout summary of the previous input definition (50 MeV, no neutrons)"); ap.add_argument("--variants", default=None, help="variants_compare summary.json"); ap.add_argument("--bayes", default=None, help="directory with bayes_uncertainty_{A,B}.json and bayes_positive_control_B.json"); ap.add_argument("--bayes-train", default=None, help="directory with the training-split-control evaluation"); ap.add_argument("--floor", default=None, help="floor_transfer.json")
     a = ap.parse_args(); D = pathlib.Path(a.model_dir)
     m = json.load(open(D / "metrics.json")); t = json.load(open(D / "metrics_tier2.json")); m1 = json.load(open(a.m1)) if pathlib.Path(a.m1).exists() else None
     M = {}
@@ -80,6 +80,18 @@ def main():
                 cm = U[f"calibration_{sp}_marginal"]; M[f"nBay{tag}{nm}MargPullRMS"] = f"{cm['pull_rms']:.2f}"; M[f"nBay{tag}{nm}MargWithin"] = f"{100*cm['frac_abs_pull_lt2']:.0f}\\%"; M[f"nBay{tag}{nm}MargBins"] = str(cm["n_bins"]); M[f"nBay{tag}{nm}MargPullRMSnoEpi"] = f"{cm['pull_rms_no_epistemic']:.2f}"
                 _rd = np.concatenate([(np.abs(np.array(v["pred"], float) - np.array(v["real"], float)) / np.array(v["real"], float))[np.isfinite(np.array(v["pull"], float))] for k, v in U["binned"][sp].items() if v.get("marginal")]); M[f"nBay{tag}{nm}MargRelDiffMedian"] = f"{100*np.median(_rd):.1f}\\%"
                 _mp = np.concatenate([np.abs(np.array(v["pull"], float))[np.isfinite(np.array(v["pull"], float))] for k, v in U["binned"][sp].items() if v.get("marginal")]); M[f"nBay{tag}{nm}MargMaxPull"] = f"{_mp.max():.0f}"; M[f"nBay{tag}{nm}Bins"] = str(c["n_bins"]); M[f"nBay{tag}{nm}PullRMSnoEpi"] = f"{c.get('pull_rms_no_epistemic', float('nan')):.2f}"
+        if a.bayes_train:
+            for tag in ("A", "B"):
+                ft = pathlib.Path(a.bayes_train) / f"bayes_uncertainty_{tag}.json"
+                if ft.exists():
+                    UT = json.load(open(ft)); M[f"nBay{tag}TrnMargPullRMS"] = f"{UT['calibration_control_marginal']['pull_rms']:.2f}"; M[f"nBay{tag}TrnPullRMS"] = f"{UT['calibration_control']['pull_rms']:.2f}"; M[f"nBay{tag}TrnMargWithin"] = f"{100*UT['calibration_control_marginal']['frac_abs_pull_lt2']:.0f}\\%"
+        if a.floor:
+            FL = json.load(open(a.floor))
+            for tag in ("A", "B"):
+                for var, vn in (("rms", "Rms"), ("rms_x1.5", "Cons")):
+                    r = FL[tag][var]; M[f"nFloor{tag}{vn}CtlRMS"] = f"{r['all']['ctl_rms']:.2f}"; M[f"nFloor{tag}{vn}OODRMS"] = f"{r['all']['ood_rms']:.2f}"; M[f"nFloor{tag}{vn}CtlWithin"] = f"{100*r['all']['ctl_within2']:.0f}\\%"; M[f"nFloor{tag}{vn}OODWithin"] = f"{100*r['all']['ood_within2']:.0f}\\%"
+                    for k, kn in (("marg_recoil", "Recoil"), ("marg_nonvtx100", "Nvtx"), ("marg_blobs", "Blobs"), ("marg_muP", "MuP"), ("marg_dthx", "Dthx"), ("marg_nprong", "Nprong")):
+                        if k in r: M[f"nFloor{tag}{vn}{kn}OOD"] = f"{r[k]['ood_rms']:.2f}"; M[f"nFloor{tag}{vn}{kn}Pct"] = f"{100*r[k]['floor_rms']:.0f}\\%"
         f = bd / "bayes_positive_control_B.json"
         if f.exists():
             P = json.load(open(f))

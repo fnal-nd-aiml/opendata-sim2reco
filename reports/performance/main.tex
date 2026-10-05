@@ -473,6 +473,30 @@ covered support, which is the common case for generator comparisons; it does not
 final states absent from training, for which the natural next test is to hold out all two-proton, pion-less
 events regardless of mode.
 
+\paragraph{Is 2p2h reachable by reweighting?} The value of the holdout as a stand-in for a generator difference
+rests on 2p2h populating final-state phase space that a 2p2h-free sample populates sparsely, so that a user could
+not simply reweight into it. In the model's input space this is measured directly: a classifier of 2p2h against
+all other processes gives, through its odds and the prior, the density ratio of the rest to 2p2h at each event,
+which is the weight a reweighting would need there. Table~\ref{tab:coverage} lists, for each process, the
+fraction of its events lying where the other processes' density is below a tenth and below a hundredth of its
+own (classifier calibrated to within 0.03 up to a predicted probability of 0.99, and cross-checked with a direct
+count in a discrete partition of the inputs, which gives 74\% and 18\% for 2p2h). Three quarters of 2p2h lies
+where the rest is below a tenth of its density, and about a quarter where it is below a hundredth; the signature
+is the exact two-nucleon, no-pion final state, in particular a proton with a single neutron, at low hadronic
+energy. Projected onto the two proton momenta alone this is invisible, since the other processes fill that plane
+at comparable density: the exclusivity lives in the species counts and the hadronic energy, not in the proton
+kinematics. The 2p2h holdout is therefore a test of prediction in a region a 2p2h-free sample cannot be
+reweighted into, while every input particle is still an ordinary particle at an ordinary momentum. Quasi-elastic
+scattering is more exclusive still and large, and is the natural second, harder holdout.
+
+\begin{table}[h]\centering\footnotesize
+\input{../coverage_2p2h/tables/by_process.tex}
+\caption{Per interaction type: share of CC $\nu_\mu$ events, classifier AUC against all other processes on the
+model inputs, fraction of the process located where the other processes' density is below 0.1 and below 0.01 of
+its own, and the median density ratio rest/process over the process's events.}
+\label{tab:coverage}
+\end{table}
+
 \section{Input definition: threshold and neutrons}
 \label{sec:inputdef}
 
@@ -594,10 +618,15 @@ imperfections of the surrogate are resolved, and the pulls widen accordingly: fo
 \nBayBCtlMargPullRMS{} over \nBayBCtlMargBins{} bins on the control (\nBayBCtlMargWithin{}), with the largest
 single pull near \nBayBCtlMargMaxPull{}; model A gives \nBayAOODMargPullRMS{} and \nBayACtlMargPullRMS{}. The
 median relative difference between the surrogate's and the open dataset's bin fractions is
-\nBayBCtlMargRelDiffMedian{} on the control and \nBayBOODMargRelDiffMedian{} on 2p2h, and the pulls are largest
-where the surrogate is known to be least faithful (Section~\ref{sec:performance}): the prong-count fractions and
-the tails of the non-vertex and isolated-blob energies. The epistemic band is far below these differences, with
-the across-draw spread consistent with sampling noise in the median bin. The reading is unambiguous: the
+\nBayBCtlMargRelDiffMedian{} on the control and \nBayBOODMargRelDiffMedian{} on 2p2h. The pulls are largest for the
+two calorimetric quantities that have a spike of exact zeros, the isolated-blob energy (a third of reconstructed
+events) and the non-vertex energy within 100\,mm (six percent): the flow blurs the sharp onset of the continuum
+above the zero spike by a few MeV, so the first continuum bins are under-populated by ten to twenty percent and
+the bins just above them over-populated by about ten percent (Figs.~\ref{fig:bm-blobs}, \ref{fig:bm-nv100}).
+The recoil shows wiggles of three to five percent in its bulk (Fig.~\ref{fig:bm-recoil}), the muon observables
+are within a few percent everywhere, and the prong-count fractions agree to a few per mille, with pulls near one.
+The epistemic band is far below these differences, with the across-draw spread consistent with sampling noise in
+the median bin. The reading is unambiguous: the
 Bayesian last layers quantify the uncertainty of the output weights given the training set, which after two
 million events is small, and they do \emph{not} quantify the model's residual imperfection, which is at the
 percent level on marginal distributions and is the dominant model-side error wherever the open dataset's
@@ -606,6 +635,70 @@ and it should be used as the flag and the parameter-uncertainty component that i
 at least as far from unit pulls as the held-out 2p2h sample, and the two models agreeing on the 2p2h events, is
 the same conclusion as Section~\ref{sec:holdout} reached from the classifier: the blind model's residual on 2p2h
 is the model's residual, not the blindness.
+
+\paragraph{Misfit, not shift.} The split is by subrun, so the test subruns are different data-taking periods from
+the training ones, and the residual above could in principle be a run-to-run change of the detector that the
+vertex and target inputs do not describe. Repeating the marginal comparison on a control sample of
+\nBayBnCtl{} events drawn from the \emph{training} split gives the same pulls: RMS \nBayBTrnMargPullRMS{} (B)
+and \nBayATrnMargPullRMS{} (A) against \nBayBCtlMargPullRMS{} and \nBayACtlMargPullRMS{} on the test split,
+with the same observables responsible. The output heads themselves are marginally exact on the training events,
+as a converged cross-entropy with a free bias must be: the mean reconstruction probability and the mean
+multiplicity softmax reproduce the empirical rates to better than a part in a thousand. The residual is
+therefore the flow's approximation of the threshold edges and the recoil shape, present on the data the model
+was trained on. It is not a shift between training and test data, and it is not something a post-hoc
+correction could legitimately remove, since the training objective already minimised it on the same events.
+
+\paragraph{A model-error floor.} The residual can be carried as an uncertainty rather than corrected. For each
+marginal observable a per-bin relative floor is derived on the training-split control as the excess of the
+squared surrogate-minus-data difference beyond the statistical and epistemic variances, smoothed over three
+neighbouring bins, and added in quadrature to the epistemic and statistical terms of the pull. Derived on the
+training split, it is applied to the test-split control, which it has never seen, and to the held-out 2p2h
+events. Fig.~\ref{fig:bayes-floor} and Table~\ref{tab:floor} give the result. For model B the marginal pull RMS
+on the test control goes from \nBayBCtlMargPullRMS{} to \nFloorBRmsCtlRMS{} (\nFloorBRmsCtlWithin{} within two)
+and on 2p2h from \nBayBOODMargPullRMS{} to \nFloorBRmsOODRMS{} (\nFloorBRmsOODWithin{} within two); model A gives
+\nFloorARmsCtlRMS{} and \nFloorARmsOODRMS{}. The floors are \nFloorBRmsRecoilPct{} for the recoil,
+\nFloorBRmsMuPPct{} and \nFloorBRmsDthxPct{} for the muon, \nFloorBRmsNvtxPct{} for the non-vertex energy and
+\nFloorBRmsBlobsPct{} for the isolated-blob energy. The one observable the floor does not fully cover on 2p2h is
+the blob energy, at RMS \nFloorBRmsBlobsOOD{} (B) and \nFloorARmsBlobsOOD{} (A): 2p2h produces proton-neutron
+pairs, neutrons make isolated blobs, and the 2p2h deviation is larger than the control's for both models, the
+blind one slightly more so, which is the only place the blindness is visible. A conservative variant with the
+floor scaled by 1.5 gives \nFloorBConsOODRMS{} overall on 2p2h and \nFloorBConsBlobsOOD{} for the blobs, at the
+cost of over-covering the control at \nFloorBConsCtlRMS{}. Two qualifications apply. The floor is a
+distribution-level object, a relative error on bin fractions per observable and region measured on the open
+dataset, not a per-event width, and it does not grow outside the support; on 2p2h, a composition shift inside the
+support, the floor does the work and the epistemic term is negligible. Whether the epistemic term grows enough
+where the support actually thins is the question an out-of-support holdout has to answer, and the positive
+control above says the last layer reacts to context, not to kinematics.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_floor_transfer.png}
+\caption{Marginal pulls with the epistemic term only (dotted) and with the model-error floor derived on the
+training-split control added in quadrature (solid), for the test-split control and held-out 2p2h, model A (left)
+and model B (right). Unit normal for reference.}
+\label{fig:bayes-floor}
+\end{figure}
+
+\begin{table}[h]\centering\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{test control} & \multicolumn{2}{c}{held-out 2p2h} \\
+ & epistemic only & + floor & epistemic only & + floor \\
+\midrule
+model A, all marginal bins & \nBayACtlMargPullRMS{} & \nFloorARmsCtlRMS{} & \nBayAOODMargPullRMS{} & \nFloorARmsOODRMS{} \\
+model B, all marginal bins & \nBayBCtlMargPullRMS{} & \nFloorBRmsCtlRMS{} & \nBayBOODMargPullRMS{} & \nFloorBRmsOODRMS{} \\
+\midrule
+model B, recoil & & & & \nFloorBRmsRecoilOOD{} \\
+model B, non-vertex energy & & & & \nFloorBRmsNvtxOOD{} \\
+model B, isolated blobs & & & & \nFloorBRmsBlobsOOD{} \\
+model B, muon $\log P$ ratio & & & & \nFloorBRmsMuPOOD{} \\
+model B, muon $\Delta\theta_x$ & & & & \nFloorBRmsDthxOOD{} \\
+model B, prong count & & & & \nFloorBRmsNprongOOD{} \\
+\bottomrule
+\end{tabular}
+\caption{Pull RMS of the marginal bin fractions before and after adding the model-error floor derived on the
+training-split control.}
+\label{tab:floor}
+\end{table}
 
 \paragraph{Uncertainties in the output file.} The ntuple writer attaches the epistemic uncertainties to every
 written event. Two kinds are stored. Analytic, in the model's standardised units and needing no extra sampling:
@@ -782,9 +875,10 @@ surrogate-side uncertainty can be read directly. The bins are those of Table~\re
   uncertainty of the output weights and flag an unfamiliar context, but they do not flag unfamiliar kinematics or
   multiplicity, which the encoder normalises into familiar features, and they do not cover the model's residual
   imperfection, which is at the percent level on marginal distributions and exceeds the epistemic band wherever
-  the open dataset's statistics resolve it. The written-out uncertainties are therefore a floor on the model
-  error. An input-space novelty score or a Bayesian treatment deeper in the network would be needed for kinematic
-  extrapolation, and a residual-error model (or a seed ensemble) for the total model error.
+  the open dataset's statistics resolve it. The written-out per-event uncertainties are therefore a lower bound
+  on the model error; the distribution-level model-error floor of Section~\ref{sec:bayes} covers the residual
+  on the control and on 2p2h except for the isolated-blob energy. An input-space novelty score or a Bayesian
+  treatment deeper in the network would be needed for kinematic extrapolation.
 \end{itemize}
 
 \appendix
