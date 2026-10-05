@@ -1,0 +1,169 @@
+{
+ "n_events": 11532532,
+ "n_2p2h": 324696,
+ "frac_2p2h": 0.02815478855814144,
+ "frac_2p0pi": {
+  "2p2h": 0.7348288860965334,
+  "rest": 0.08097441825522786
+ },
+ "share_of_2p0pi_that_is_2p2h": 0.20817279504146075,
+ "p1_p2": {
+  "frac_2p2h_in_untouched_bins": 0.0,
+  "frac_2p2h_in_dominated_bins": 0.0,
+  "n_bins_2p2h": 372,
+  "n_untouched": 0,
+  "n_dominated": 0,
+  "weight_2p2h_over_rest_median": 1.2961450074518122,
+  "weight_p90": 2.462861840231802,
+  "frac_weight_gt10": 0.0,
+  "frac_weight_inf": 0.0,
+  "n_2p2h": 238596,
+  "n_rest": 907548
+ },
+ "p2_cos12": {
+  "frac_2p2h_in_untouched_bins": 0.0,
+  "frac_2p2h_in_dominated_bins": 0.0,
+  "n_bins_2p2h": 379,
+  "n_untouched": 0,
+  "n_dominated": 0,
+  "weight_2p2h_over_rest_median": 1.249519537971996,
+  "weight_p90": 2.3311223820592515,
+  "frac_weight_gt10": 0.0,
+  "frac_weight_inf": 0.0,
+  "n_2p2h": 238596,
+  "n_rest": 907548
+ },
+ "Q2_W": {
+  "frac_2p2h_in_untouched_bins": 3.118188706544143e-06,
+  "frac_2p2h_in_dominated_bins": 0.04026828895631106,
+  "n_bins_2p2h": 291,
+  "n_untouched": 1,
+  "n_dominated": 7,
+  "weight_2p2h_over_rest_median": 3.04567612447819,
+  "weight_p90": 5.037455211512136,
+  "frac_weight_gt10": 0.0397725872816419,
+  "frac_weight_inf": 3.079803878089043e-06,
+  "n_2p2h": 324696,
+  "n_rest": 11207836
+ },
+ "Q2_W_2p0pi": {
+  "frac_2p2h_in_untouched_bins": 0.0003393900312663066,
+  "frac_2p2h_in_dominated_bins": 0.022000958776838327,
+  "n_bins_2p2h": 291,
+  "n_untouched": 3,
+  "n_dominated": 6,
+  "weight_2p2h_over_rest_median": 2.1696743495259776,
+  "weight_p90": 3.1876082140969846,
+  "frac_weight_gt10": 0.021735485926000435,
+  "frac_weight_inf": 0.0003352948079598987,
+  "n_2p2h": 238596,
+  "n_rest": 907548
+ },
+ "classifier_variants": {
+  "auc_hadrons_only": 0.9840345819675109,
+  "auc_muon_only": 0.8302600784906322,
+  "auc_all": 0.9866816554663879,
+  "hadron_cols": [
+   "n_e",
+   "sumKE_e",
+   "maxKE_e",
+   "n_gamma",
+   "sumKE_gamma",
+   "maxKE_gamma",
+   "n_p",
+   "sumKE_p",
+   "maxKE_p",
+   "n_pip",
+   "sumKE_pip",
+   "maxKE_pip",
+   "n_pim",
+   "sumKE_pim",
+   "maxKE_pim",
+   "n_pi0",
+   "sumKE_pi0",
+   "maxKE_pi0",
+   "n_Kpm",
+   "sumKE_Kpm",
+   "maxKE_Kpm",
+   "n_K0",
+   "sumKE_K0",
+   "maxKE_K0",
+   "n_hyperon",
+   "sumKE_hyperon",
+   "maxKE_hyperon",
+   "n_other",
+   "sumKE_other",
+   "maxKE_other",
+   "n_n",
+   "sumKE_n",
+   "maxKE_n",
+   "n_had",
+   "sumKE_had",
+   "maxKE_had",
+   "n_p_ke100",
+   "n_charged_had",
+   "sum_pt_had",
+   "max_theta_had",
+   "lead_had_theta",
+   "lead_had_cls",
+   "p1",
+   "p2",
+   "cos12"
+  ]
+ },
+ "classifier": {
+  "auc": 0.9866816554663879,
+  "prior": 0.028147333333333333,
+  "frac_2p2h_with_p_gt_0.5": 0.4883170939362407,
+  "frac_2p2h_with_p_gt_0.9": 0.20991391542900387,
+  "frac_2p2h_with_p_gt_0.99": 0.025305079935673068,
+  "frac_2p2h_with_p_gt_0.5_2p0pi": 0.5274400051470115,
+  "frac_2p2h_with_p_gt_0.9_2p0pi": 0.24036543781766712
+ },
+ "within_2p0pi": {
+  "prior": 0.20766858828261162,
+  "n": 149180,
+  "all inputs": {
+   "auc": 0.921763718995886,
+   "frac_2p2h_p_gt_0.9": 0.23690644704671213,
+   "frac_2p2h_p_gt_0.99": 0.017951357611632995,
+   "frac_rest_p_gt_0.9": 0.001100799349681615
+  },
+  "hadron tokens only": {
+   "auc": 0.9059603644501333,
+   "frac_2p2h_p_gt_0.9": 0.21303564534808905,
+   "frac_2p2h_p_gt_0.99": 0.011388495689100503,
+   "frac_rest_p_gt_0.9": 0.001185476222734047
+  },
+  "counts only": {
+   "auc": 0.8315705339457957,
+   "frac_2p2h_p_gt_0.9": 0.0,
+   "frac_2p2h_p_gt_0.99": 0.0,
+   "frac_rest_p_gt_0.9": 0.0
+  },
+  "KE sums/max only": {
+   "auc": 0.8691641671062033,
+   "frac_2p2h_p_gt_0.9": 0.00019302535066272037,
+   "frac_2p2h_p_gt_0.99": 0.0,
+   "frac_rest_p_gt_0.9": 1.6935374610486385e-05
+  },
+  "proton pair (p1, p2, cos12)": {
+   "auc": 0.7495478940370239,
+   "frac_2p2h_p_gt_0.9": 0.0,
+   "frac_2p2h_p_gt_0.99": 0.0,
+   "frac_rest_p_gt_0.9": 0.0
+  },
+  "muon only": {
+   "auc": 0.7508626465976673,
+   "frac_2p2h_p_gt_0.9": 0.0,
+   "frac_2p2h_p_gt_0.99": 0.0,
+   "frac_rest_p_gt_0.9": 0.0
+  },
+  "hadron tokens without counts": {
+   "auc": 0.900948305356324,
+   "frac_2p2h_p_gt_0.9": 0.1950199459529018,
+   "frac_2p2h_p_gt_0.99": 0.006820229056749453,
+   "frac_rest_p_gt_0.9": 0.001541119089554261
+  }
+ }
+}
