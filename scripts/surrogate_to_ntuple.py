@@ -45,6 +45,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("model_dir"); ap.add_argument("truth"); ap.add_argument("out")
     ap.add_argument("--n", type=int, default=None); ap.add_argument("--steps", type=int, default=64); ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--epi-draws", type=int, default=16, help="posterior weight draws for per-event epistemic uncertainties (0 = off); needs bayes_last.pt in MODEL_DIR")
     a = ap.parse_args()
     torch.manual_seed(a.seed)
     truth = ak.from_parquet(a.truth)
@@ -58,13 +59,49 @@ def main():
     else:
         model, tf = m2.load_model(pathlib.Path(a.model_dir) / "model.pt"); ptf = None
     ds = CompactDataset(d, np.arange(len(truth)), tf, a.seed, prong_tf=ptf)  # ptf=None -> Tier 1 only
-    S, PR, PM, VC = [], [], [], []
-    for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
-        s = model.sample(to_dev(b, "cuda"), a.steps)
-        S.append(torch.cat([s["exist"][:, None].float(), s["minos"][:, None].float(), s["charge"][:, None].float(), s["nprong"][:, None].float(), s["x1"]], 1).cpu())
-        if tier2:
-            PR.append(s["prongs"].cpu()); PM.append(s["pmask"].cpu()); VC.append(s["vclass"].cpu())
-    S = torch.cat(S).numpy()
+    loader = lambda: DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4)
+
+    def generate(seed):
+        """One full generation pass; a fixed seed gives the same base noise, so repeated passes differ only through the weights."""
+        torch.manual_seed(seed); S, PR, PM, VC, P0 = [], [], [], [], []
+        for b in loader():
+            s = model.sample(to_dev(b, "cuda"), a.steps)
+            S.append(torch.cat([s["exist"][:, None].float(), s["minos"][:, None].float(), s["charge"][:, None].float(), s["nprong"][:, None].float(), s["x1"]], 1).cpu())
+            P0.append(s["p0"].cpu())
+            if tier2: PR.append(s["prongs"].cpu()); PM.append(s["pmask"].cpu()); VC.append(s["vclass"].cpu())
+        return torch.cat(S).numpy(), PR, PM, VC, torch.cat(P0).numpy()
+
+    S, PR, PM, VC, P0 = generate(a.seed)
+    # ---- epistemic uncertainties: analytic per-variable variance (model space) + K common-noise posterior draws (physical units)
+    epi = None
+    bl_path = pathlib.Path(a.model_dir) / "bayes_last.pt"
+    if a.epi_draws > 0 and bl_path.exists():
+        from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer
+        post = {k: GaussianLastLayer.from_state(v, "cuda") for k, v in torch.load(bl_path, map_location="cpu", weights_only=False).items()}
+        layers = {k: head_layer(model, p) for k, (p, _) in HEADS.items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
+        # analytic: logit variances of the three flags, mean multiplicity-logit variance, and the event-flow flag along the nominal trajectory
+        A_exist, A_card, A_flow = [], [], []
+        with torch.no_grad():
+            torch.manual_seed(a.seed)
+            for b in loader():
+                b = to_dev(b, "cuda"); z, _ = model.enc(b["cls"], b["mom"], b["mask"], b["ctx"]); lg = model.tier0(z); A_exist.append(post["tier0"].var(taps["tier0"].h).cpu())
+                pn = torch.softmax(model.card(z), -1); A_card.append(post["card"].var(taps["card"].h).mean(1).cpu())
+                u = torch.rand_like(lg); flags = torch.stack([u[:, 1] < torch.sigmoid(lg)[:, 1], (u[:, 1] < torch.sigmoid(lg)[:, 1]) & (u[:, 2] < torch.sigmoid(lg)[:, 2])], -1).float()
+                cond = model.flow_cond(z, flags, torch.multinomial(pn, 1)[:, 0]); x = torch.randn(len(z), model.flow.dim, device="cuda"); dt = 1.0 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device="cuda")
+                for i in range(a.steps):
+                    t = torch.full((len(z),), i * dt, device="cuda"); k1 = model.flow.v(x, t, cond); k2 = model.flow.v(x + 0.5 * dt * k1, t + 0.5 * dt, cond); g += dt * taps["flow"].h; x = (x + dt * k2).clamp(-20, 20)
+                A_flow.append(post["flow"].var(g).cpu())
+        epi = {"logit_var": torch.cat(A_exist).numpy(), "card_var": torch.cat(A_card).numpy(), "flow_var": torch.cat(A_flow).numpy()}
+        # K draws with common random numbers: perturb the output layers of flag, multiplicity and event flow (and prong flow if present)
+        W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in layers}
+        gen = torch.Generator(device="cuda"); gen.manual_seed(a.seed + 1000); draws = []
+        for k_ in range(a.epi_draws):
+            for k in ("tier0", "card", "flow") + (("prong",) if tier2 else ()):
+                dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
+            draws.append(generate(a.seed))
+        for k in layers: layers[k].weight.data, layers[k].bias.data = W0[k]
+        epi["draws"] = draws
+        print(f"epistemic uncertainties from {a.epi_draws} posterior draws (common noise)", flush=True)
     exist = S[:, 0] > 0
     y = tf.inverse(S[exist, 4:], d["mu_true"][exist], d["ctx"][exist])
     if tier2:  # snap the vertex z to a plane when the class head says so
@@ -96,13 +133,25 @@ def main():
         rec = ak.with_field(rec, ak.unflatten(best[pm], counts), "is_primary_proton")
         out.update(decode_prongs(rec, choose_primary="flag"))
         out["MasterAnaDev_hadron_number"] = n; out["n_prongs"] = n + 1
-    out["surrogate_p_reco_exists"] = np.zeros(exist.sum())  # placeholder for downstream weighting; filled below
-    p0 = None
-    # per-event efficiency probability (useful for reweighting) from a second pass over probabilities
-    probs = []
-    for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
-        p, _, _ = model.predict_probs(to_dev(b, "cuda")); probs.append(p[:, 0].cpu())
-    out["surrogate_p_reco_exists"] = torch.cat(probs).numpy()[exist].astype(np.float64)
+    out["surrogate_p_reco_exists"] = P0[exist, 0].astype(np.float64)
+    if epi is not None:
+        # analytic (model space): std of the flag logits, mean multiplicity-logit variance, event-flow flag (sum of 9 variances)
+        out["surrogate_epi_logit_reco_exists"] = np.sqrt(epi["logit_var"][exist, 0]); out["surrogate_epi_logit_minos"] = np.sqrt(epi["logit_var"][exist, 1]); out["surrogate_epi_logit_charge"] = np.sqrt(epi["logit_var"][exist, 2])
+        out["surrogate_epi_multiplicity_logits"] = np.sqrt(epi["card_var"][exist]); out["surrogate_epi_flow_flag"] = epi["flow_var"][exist].sum(1)
+        # K-draw std in physical units for the written event-level variables, and of the probabilities
+        Ys = []; Ps = []; Ns = []
+        for Sk, PRk, PMk, VCk, P0k in epi["draws"]:
+            yk = tf.inverse(Sk[exist, 4:], d["mu_true"][exist], d["ctx"][exist])
+            if tier2:
+                vck = torch.cat(VCk).numpy()[exist]; zk = tf.planes.z_for_class(vck, d["ctx"][exist, 2], yk[:, 5]); yk[:, 5] = np.where(vck > 0, zk, yk[:, 5])
+            Ys.append(yk); Ps.append(P0k[exist]); Ns.append(Sk[exist, 3])
+        Ys = np.array(Ys); sd = Ys.std(0)
+        for j, c in enumerate("xyz"): out[f"surrogate_epi_muon_P{c}"] = sd[:, j]
+        out["surrogate_epi_muon_P"] = np.linalg.norm(Ys[:, :, :3], axis=2).std(0)
+        for j, c in enumerate("xyz"): out[f"surrogate_epi_vtx_{c}"] = sd[:, 3 + j]
+        out["surrogate_epi_recoil_E"] = sd[:, 6]; out["surrogate_epi_recoil_nonvtx100"] = sd[:, 9]; out["surrogate_epi_nonvtx_iso_blobs_energy"] = sd[:, 10]
+        Ps = np.array(Ps); out["surrogate_epi_p_reco_exists"] = Ps[:, :, 0].std(0); out["surrogate_epi_p_minos"] = Ps[:, :, 1].std(0); out["surrogate_epi_p_charge_neg"] = Ps[:, :, 2].std(0)
+        out["surrogate_epi_n_prongs"] = np.array(Ns).std(0); out["surrogate_epi_draws"] = np.full(exist.sum(), a.epi_draws, dtype=np.int32)
     write_ntuple(a.out, out)
     print(f"{len(truth)} truth events -> {exist.sum()} reconstructed ({exist.mean()*100:.1f}%) -> {a.out}")
 

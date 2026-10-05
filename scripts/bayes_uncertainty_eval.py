@@ -89,7 +89,7 @@ def binned(idx, draws):
         "dthx_vs_P": (muP[reco_real][valid], xr[:, 1], p_edges, "true muon momentum [GeV]", "mean dtheta_x [model space]"),
     }
     real = {k: bin_mean(v[0], v[1], v[2]) for k, v in spec.items()}
-    ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in spec}
+    ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in spec}; pstat = {k: [] for k in spec}
     W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "card", "flow")}
     gen = torch.Generator(device=dev); gen.manual_seed(123)
     with torch.no_grad():
@@ -100,25 +100,32 @@ def binned(idx, draws):
             for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
                 s_ = model.sample(to_dev(b, dev), a.steps); S.append(torch.cat([s_["exist"][:, None].float(), s_["nprong"][:, None].float(), s_["x1"]], 1).cpu())
             S = torch.cat(S).numpy(); ex = S[:, 0] > 0; npr = S[:, 1].copy(); npr[~ex] = np.nan
-            preds["eff_vs_nhad"].append(bin_mean(nhad, S[:, 0], n_edges)[0]); preds["nprong_vs_nhad"].append(bin_mean(nhad, npr, n_edges)[0])
-            Sv = S[reco_real][valid]
-            preds["recoil_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 6], ke_edges)[0]); preds["nonvtx100_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 7], ke_edges)[0]); preds["blobs_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 8], ke_edges)[0])
-            preds["muP_vs_P"].append(bin_mean(muP[reco_real][valid], Sv[:, 2 + 0], p_edges)[0]); preds["dthx_vs_P"].append(bin_mean(muP[reco_real][valid], Sv[:, 2 + 1], p_edges)[0])
+            Sv = S[reco_real][valid]; kv = ke[reco_real][valid]; pv_ = muP[reco_real][valid]
+            draws_ = {"eff_vs_nhad": bin_mean(nhad, S[:, 0], n_edges), "nprong_vs_nhad": bin_mean(nhad, npr, n_edges),
+                      "recoil_vs_ke": bin_mean(kv, Sv[:, 2 + 6], ke_edges), "nonvtx100_vs_ke": bin_mean(kv, Sv[:, 2 + 7], ke_edges), "blobs_vs_ke": bin_mean(kv, Sv[:, 2 + 8], ke_edges),
+                      "muP_vs_P": bin_mean(pv_, Sv[:, 2 + 0], p_edges), "dthx_vs_P": bin_mean(pv_, Sv[:, 2 + 1], p_edges)}
+            for k, (m_, e_) in draws_.items(): preds[k].append(m_); pstat[k].append(e_)
     for k in ("tier0", "card", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
     out_ = {}
     for k, v in spec.items():
-        P = np.array(preds[k]); mu, ep = np.nanmean(P, 0), np.nanstd(P, 0); r_, se = real[k]
-        pull = (mu - r_) / np.sqrt(ep ** 2 + se ** 2 + ep ** 2 / draws)
+        P = np.array(preds[k]); mu = np.nanmean(P, 0); r_, se = real[k]
+        # across-draw variance = epistemic + the surrogate's own sampling noise; the K-draw mean keeps only 1/K of the latter
+        stat_s2 = np.nanmean(np.array(pstat[k]) ** 2, 0)
+        ep = np.sqrt(np.clip(np.nanvar(P, 0) - stat_s2, 0, None))
+        pull = (mu - r_) / np.sqrt(ep ** 2 + stat_s2 / draws + se ** 2)
         e = v[2]; centers = (np.sqrt(e[:-1] * e[1:]) if e[0] > 0 else 0.5 * (e[:-1] + e[1:])).tolist()
-        out_[k] = {"centers": centers, "xlabel": v[3], "ylabel": v[4], "logx": bool(e[0] > 0 and e[1] / e[0] > 1.1), "real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "pull": pull.tolist()}
+        out_[k] = {"centers": centers, "xlabel": v[3], "ylabel": v[4], "logx": bool(e[0] > 0 and e[1] / e[0] > 1.1), "real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "surrogate_stat": np.sqrt(stat_s2).tolist(), "pull": pull.tolist()}
     return out_
 
 C = {"heldout": binned(ood, a.draws), "control": binned(ctl, a.draws)}
 for s_, res in C.items():
     pulls = np.concatenate([np.array(v["pull"]) for v in res.values()]); pulls = pulls[np.isfinite(pulls)]
     eps = np.concatenate([np.array(v["epistemic"]) / np.maximum(np.array(v["real_err"]), 1e-9) for v in res.values()]); eps = eps[np.isfinite(eps)]
-    R[f"calibration_{s_}"] = {"n_bins": int(len(pulls)), "pull_rms": float(np.sqrt(np.mean(pulls ** 2))), "pull_mean": float(pulls.mean()), "frac_abs_pull_lt2": float((np.abs(pulls) < 2).mean()), "median_epistemic_over_stat": float(np.median(eps))}
-    print(f"calibration {s_:8s}: {len(pulls)} bins, pull RMS {R[f'calibration_{s_}']['pull_rms']:.2f}, |pull|<2 in {R[f'calibration_{s_}']['frac_abs_pull_lt2']:.2f}, epistemic/stat median {np.median(eps):.2f}", flush=True)
+    # pull without the epistemic term: tells whether the epistemic band is needed at all
+    pulls0 = np.concatenate([(np.array(v["pred"]) - np.array(v["real"])) / np.sqrt(np.array(v["surrogate_stat"]) ** 2 / a.draws + np.array(v["real_err"]) ** 2) for v in res.values()]); pulls0 = pulls0[np.isfinite(pulls0)]
+    R[f"calibration_{s_}"] = {"n_bins": int(len(pulls)), "pull_rms": float(np.sqrt(np.mean(pulls ** 2))), "pull_mean": float(pulls.mean()), "frac_abs_pull_lt2": float((np.abs(pulls) < 2).mean()),
+                              "median_epistemic_over_stat": float(np.median(eps)), "pull_rms_no_epistemic": float(np.sqrt(np.mean(pulls0 ** 2)))}
+    print(f"calibration {s_:8s}: {len(pulls)} bins, pull RMS {R[f'calibration_{s_}']['pull_rms']:.2f} (without epistemic term {R[f'calibration_{s_}']['pull_rms_no_epistemic']:.2f}), |pull|<2 in {R[f'calibration_{s_}']['frac_abs_pull_lt2']:.2f}, epistemic/stat median {np.median(eps):.2f}", flush=True)
 R["binned"] = C
 json.dump(R, open(out / f"bayes_uncertainty{a.tag}.json", "w"), indent=1, default=float)
 print("done")

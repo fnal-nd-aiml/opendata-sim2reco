@@ -519,5 +519,9 @@ still costs < 0.01. Full test A: 0.528 / 0.524. All downstream products regenera
   Last-layer methods see novelty only through the last-layer features; kinematic extrapolation is not flagged.
 - **Calibration:** pulls of binned predictions against the open dataset (efficiency, recoil, muon ratio): RMS 0.72
   (B on 2p2h), 0.66 (B control), 0.75 / 0.68 (A); all bins within |pull| < 2. Epistemic/statistical error ≈ 0.6–0.7.
+- **Output file:** `scripts/surrogate_to_ntuple.py --epi-draws K` (default 16) writes 20 `surrogate_epi_*` branches per
+  event: analytic logit/flow variances (model space) and K common-noise posterior-draw standard deviations in physical
+  units (muon P and components, vertex, energies, probabilities, prong count). Relative precision of a K-draw std is
+  ~1/sqrt(2(K-1)).
 - Documented in the technote §Epistemic uncertainty (figures in `reports/bayes_1A/`); schematic marks the Bayesian
-  layers in purple. Paper to follow once the technote version is agreed.
+  layers in purple. Pull denominator corrected 2026-10-05 (epistemic vs sampling variance separated). Paper to follow.

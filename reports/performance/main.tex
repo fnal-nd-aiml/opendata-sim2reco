@@ -555,16 +555,39 @@ reconstruction probability and the mean prong count versus the true hadron count
 and isolated-blob energies versus the true hadronic kinetic energy, and the mean muon momentum ratio and angle
 difference versus the true muon momentum, in 12 to 16 bins each (any binning is admissible; bins only need
 enough events for a mean, and finer bins carry larger statistical errors). $K=8$ posterior weight draws of the
-flag, multiplicity and event-flow output layers give the epistemic spread of each binned prediction, and the
-pull against the open dataset is the difference divided by the epistemic and statistical errors in quadrature.
-Both models are shown, since the claim to establish is that the \emph{blind} model's uncertainty is calibrated
-on the mode it never saw. For model B on the held-out 2p2h events the pull
-RMS over \nBayBOODBins{} bins is \nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$; on the
+flag, multiplicity and event-flow output layers are made, each followed by a fresh generation of the sample. The
+across-draw variance of a binned prediction contains two parts, the epistemic variance from the re-drawn weights
+and the surrogate's own sampling noise in that bin (fresh noise per draw); the latter is estimated within each
+draw and subtracted, and since the prediction compared is the mean over the $K$ draws, only $1/K$ of it survives.
+The pull against the open dataset is then the difference divided by the epistemic variance, the surrogate's
+sampling variance over $K$, and the open dataset's statistical variance, in quadrature. (A first version of this
+test put the full across-draw spread in the denominator, which over-counts the surrogate's sampling noise by
+nearly a factor $K$ and produced pull widths of about 0.7; the decomposition above removes that bias.) Both
+models are shown, since the claim to establish is that the \emph{blind} model's uncertainty is calibrated on the
+mode it never saw. For model B on the held-out 2p2h events the pull RMS over \nBayBOODBins{} bins is
+\nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$ (95\% expected for a unit normal); on the
 control sample \nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}
-(Fig.~\ref{fig:bayes-cal}; all observables in Fig.~\ref{fig:bayes-cal-all}). The median ratio of epistemic to statistical error is \nBayBOODEpiStat{} on 2p2h and
-\nBayBCtlEpiStat{} on the control, so the epistemic band is a minor contribution where the model is inside its
-support and the agreement with the open dataset is governed by the model's residual imperfection rather than by
-its parameter uncertainty.
+(Fig.~\ref{fig:bayes-cal}; all observables in Fig.~\ref{fig:bayes-cal-all}). Without the epistemic term the pull
+RMS would be \nBayBOODPullRMSnoEpi{} (B, 2p2h) and \nBayBCtlPullRMSnoEpi{} (B, control): the epistemic band is a
+small but real part of the budget where the model is inside its support, and the median ratio of the epistemic
+to the statistical error is \nBayBOODEpiStat{} on 2p2h and \nBayBCtlEpiStat{} on the control. The agreement with
+the open dataset is therefore governed by statistics and by the model's residual imperfection rather than by its
+parameter uncertainty.
+
+\paragraph{Uncertainties in the output file.} The ntuple writer attaches the epistemic uncertainties to every
+written event. Two kinds are stored. Analytic, in the model's standardised units and needing no extra sampling:
+the standard deviation of the three flag logits (\texttt{surrogate\_epi\_logit\_*}), the mean variance of the
+multiplicity logits, and the event-flow flag (the sum of the nine first-order variances along the nominal
+trajectory, \texttt{surrogate\_epi\_flow\_flag}). And in physical units, from $K$ posterior weight draws regenerated
+with the same base noise so that the draws differ only through the weights: the standard deviation of the muon
+momentum and its components, of the reconstructed vertex, of the three generated energies, of the reconstruction,
+MINOS and charge probabilities, and of the prong count (\texttt{surrogate\_epi\_muon\_P}, \texttt{\_vtx\_z},
+\texttt{\_recoil\_E}, \texttt{\_p\_reco\_exists}, \texttt{\_n\_prongs}, \ldots), with $K$ recorded in
+\texttt{surrogate\_epi\_draws}. $K$ is a free parameter; a standard deviation estimated from $K$ draws has a
+relative precision of about $1/\sqrt{2(K-1)}$, 27\% at $K=8$ and 18\% at the default $K=16$, at a cost of $K$
+generation passes. Typical values on in-distribution events are an epistemic spread of 0.2\% on the muon
+momentum, 0.5\% on the recoil energy and 0.003 on the reconstruction probability, i.e.\ small compared with the
+aleatoric spread of the samples, which is the expected situation inside the training support.
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_flags_B.png}
