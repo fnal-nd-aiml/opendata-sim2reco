@@ -21,14 +21,14 @@ from sim2reco.prep.features import event_features
 from sim2reco.eval import plots
 
 ap = argparse.ArgumentParser(); ap.add_argument("out_dir"); ap.add_argument("--model", required=True); ap.add_argument("--slim-dir", default="data/slim_1A")
-ap.add_argument("--ood-inttype", type=int, nargs="*", default=[8]); ap.add_argument("--n-control", type=int, default=60000); ap.add_argument("--draws", type=int, default=10); ap.add_argument("--steps", type=int, default=64); ap.add_argument("--tag", default="")
+ap.add_argument("--ood-inttype", type=int, nargs="*", default=[8]); ap.add_argument("--n-control", type=int, default=60000); ap.add_argument("--draws", type=int, default=10); ap.add_argument("--steps", type=int, default=64); ap.add_argument("--tag", default=""); ap.add_argument("--control-split", type=int, default=2, help="split the control sample is drawn from: 0 train, 1 val, 2 test")
 a = ap.parse_args(); out = pathlib.Path(a.out_dir); (out / "figures").mkdir(parents=True, exist_ok=True); (out / "tables").mkdir(exist_ok=True); dev = "cuda"; rng = np.random.default_rng(0)
 D = pathlib.Path(a.model); model, tf, ptf = load_model(D / "model.pt"); ck = torch.load(D / "model.pt", map_location="cpu", weights_only=False)["config"]
 post = {k: GaussianLastLayer.from_state(s, dev) for k, s in torch.load(D / "bayes_last.pt", map_location="cpu", weights_only=False).items()}
 layers = {k: head_layer(model, p) for k, (p, _) in HEADS.items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
 stems = sorted(p[:-len(".truth.parquet")] for p in glob.glob(f"{a.slim_dir}/*.truth.parquet"))
 d = load_compact(stems, ke_cut_mev=ck.get("ke_cut_mev", 50.0), keep_neutrons=ck.get("keep_neutrons", False)); split = split_by_subrun(d["subrun"], seed=0)
-te = np.where(split == 2)[0]; ood = te[np.isin(d["intType"][te], a.ood_inttype)]; ctl = rng.permutation(te[~np.isin(d["intType"][te], a.ood_inttype)])[:a.n_control]
+te = np.where(split == 2)[0]; ood = te[np.isin(d["intType"][te], a.ood_inttype)]; cs = np.where(split == a.control_split)[0]; ctl = rng.permutation(cs[~np.isin(d["intType"][cs], a.ood_inttype)])[:a.n_control]
 print(f"OOD events {len(ood):,}, control {len(ctl):,}", flush=True)
 
 def flag_pass(idx):
@@ -70,7 +70,7 @@ def binned(idx, draws, medges=None):
     reco_real = d["reco_exists"][idx]; ir = idx[reco_real]
     cls_p, mom_p, mask_p = _pad(d, idx); X, names = event_features(cls_p, mom_p, mask_p, d["ctx"][idx])
     nhad = X[:, names.index("n_had")]; ke = X[:, names.index("sumKE_had")]; muP = X[:, names.index("mu_P")] / 1000
-    xr, valid = tf.forward(d["tier1"][ir], d["mu_true"][ir], d["ctx"][ir], rng)
+    xr, valid = tf.forward(d["tier1"][ir], d["mu_true"][ir], d["ctx"][ir], rng); xr = xr[valid]  # drop corrupt rows consistently with the x-axis arrays
     ke_edges = np.logspace(np.log10(30), np.log10(20000), 17); p_edges = np.logspace(np.log10(0.5), np.log10(40), 15); n_edges = np.arange(-0.5, 12.5, 1)
     def bin_mean(x, y, edges):
         m, e_ = [], []
@@ -121,7 +121,7 @@ def binned(idx, draws, medges=None):
                       "recoil_vs_ke": bin_mean(kv, Sv[:, 2 + 6], ke_edges), "nonvtx100_vs_ke": bin_mean(kv, Sv[:, 2 + 7], ke_edges), "blobs_vs_ke": bin_mean(kv, Sv[:, 2 + 8], ke_edges),
                       "muP_vs_P": bin_mean(pv_, Sv[:, 2 + 0], p_edges), "dthx_vs_P": bin_mean(pv_, Sv[:, 2 + 1], p_edges)}
             for k, (m_, e_) in draws_.items(): preds[k].append(m_); pstat[k].append(e_)
-            mdraws = {"marg_nprong": npr[reco_real], "marg_recoil": Sv[:, 2 + 6], "marg_nonvtx100": Sv[:, 2 + 7], "marg_blobs": Sv[:, 2 + 8], "marg_muP": Sv[:, 2 + 0], "marg_dthx": Sv[:, 2 + 1]}
+            mdraws = {"marg_nprong": npr, "marg_recoil": Sv[:, 2 + 6], "marg_nonvtx100": Sv[:, 2 + 7], "marg_blobs": Sv[:, 2 + 8], "marg_muP": Sv[:, 2 + 0], "marg_dthx": Sv[:, 2 + 1]}
             for k, y in mdraws.items(): f_, e_ = bin_frac(y, mspec[k][1]); preds_m[k].append(f_); pstat_m[k].append(e_)
     for k in ("tier0", "card", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
     out_ = {}
