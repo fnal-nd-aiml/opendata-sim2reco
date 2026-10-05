@@ -75,7 +75,7 @@ def main():
             U = json.load(open(f)); M[f"nBay{tag}nOOD"] = f"{U['n_ood']:,}".replace(",", "{,}"); M[f"nBay{tag}nCtl"] = f"{U['n_control']:,}".replace(",", "{,}")
             for k, nm in (("exist", "Exist"), ("card", "Card"), ("flow", "Flow")):
                 fl = U["flags"][k]; M[f"nBay{tag}{nm}AUC"] = f"{fl['ood_auc']:.2f}"; M[f"nBay{tag}{nm}Ratio"] = f"{fl['median_ood']/max(fl['median_control'],1e-12):.2f}"
-            for sp, nm in (("ood", "OOD"), ("control", "Ctl")):
+            for sp, nm in (("heldout", "OOD"), ("control", "Ctl")):
                 c = U[f"calibration_{sp}"]; M[f"nBay{tag}{nm}PullRMS"] = f"{c['pull_rms']:.2f}"; M[f"nBay{tag}{nm}Within"] = f"{100*c['frac_abs_pull_lt2']:.0f}\\%"; M[f"nBay{tag}{nm}EpiStat"] = f"{c['median_epistemic_over_stat']:.2f}"; M[f"nBay{tag}{nm}Bins"] = str(c["n_bins"])
         f = bd / "bayes_positive_control_B.json"
         if f.exists():

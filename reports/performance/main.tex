@@ -522,7 +522,11 @@ pass over two million training events fits all five layers in about a minute. Tw
 per event: the variance of a head's logit, $h^\top \Sigma h$, and for a generated event-flow sample the
 first-order variance of the final state under a weight perturbation held fixed along the trajectory,
 $g_o^\top \Sigma_o g_o$ with $g_o = \sum_s \Delta t\, h_s$. Drawing $K$ weight samples and regenerating gives
-the epistemic spread of any binned prediction.
+the epistemic spread of any binned prediction. In words: the reconstruction-flag variance is how unsure the model
+is about the probability that this event gets a muon candidate at all; the multiplicity variance, how unsure it is
+about the prong-count probabilities; the event-flow variance, how much the generated muon, vertex and calorimetry
+vector would move if the output weights were re-drawn from their posterior. All three are properties of the
+input event, available without any truth or comparison model.
 
 \paragraph{Does the flag detect the held-out mode?} No, and it should not. Fitted on the 2p2h-blind model B,
 the per-event variances on the \nBayBnOOD{} 2p2h test events separate from those on \nBayBnCtl{} in-distribution
@@ -532,8 +536,9 @@ the same events (Fig.~\ref{fig:bayes-flags}). The mild separation is therefore a
 of blindness, and it agrees with Sections~\ref{sec:holdout}: 2p2h final states lie inside the training support,
 model B reproduces them as well as A does, and the model's own uncertainty says so.
 
-\paragraph{Can the flag detect anything?} The positive control of Fig.~\ref{fig:bayes-pc} perturbs in-distribution
-events into regions the training data cannot contain. Moving the vertex far upstream raises the epistemic variance
+\paragraph{Can the flag detect anything?} A flag that did not fire proves nothing unless it is shown to fire when it
+should. The positive control of Fig.~\ref{fig:bayes-pc} takes the same control events and perturbs them into
+regions the training data cannot contain, then histograms the same three variances. Moving the vertex far upstream raises the epistemic variance
 of the reconstruction flag by a factor \nPCVtxExistRatio{} (detection AUC \nPCVtxExistAUC{}), of the multiplicity
 logits by \nPCVtxCardRatio{} (\nPCVtxCardAUC{}) and of the event-flow sample by \nPCVtxFlowRatio{} (\nPCVtxFlowAUC{}).
 Scaling all hadron momenta by four or tripling the hadron tokens changes the variances by only
@@ -545,13 +550,18 @@ through the last-layer features, and it applies to any model of this kind, inclu
 last-layer model used elsewhere in this programme. It also indicates the remedy for kinematic extrapolation:
 Bayesian treatment deeper in the network, or an input-space novelty score alongside the last-layer one.
 
-\paragraph{Is the uncertainty calibrated?} For binned predictions (efficiency versus true hadron count, mean
-log recoil energy versus true hadronic kinetic energy, muon momentum ratio versus true momentum), $K=8$
-posterior weight draws give the epistemic spread, and the pull against the open dataset is the difference
-divided by the epistemic and statistical errors in quadrature. For model B on the held-out 2p2h events the pull
+\paragraph{Is the uncertainty calibrated?} Seven binned observables are compared with the open dataset: the
+reconstruction probability and the mean prong count versus the true hadron count, the mean recoil, non-vertex
+and isolated-blob energies versus the true hadronic kinetic energy, and the mean muon momentum ratio and angle
+difference versus the true muon momentum, in 12 to 16 bins each (any binning is admissible; bins only need
+enough events for a mean, and finer bins carry larger statistical errors). $K=8$ posterior weight draws of the
+flag, multiplicity and event-flow output layers give the epistemic spread of each binned prediction, and the
+pull against the open dataset is the difference divided by the epistemic and statistical errors in quadrature.
+Both models are shown, since the claim to establish is that the \emph{blind} model's uncertainty is calibrated
+on the mode it never saw. For model B on the held-out 2p2h events the pull
 RMS over \nBayBOODBins{} bins is \nBayBOODPullRMS{} with \nBayBOODWithin{} of bins within $|$pull$| < 2$; on the
 control sample \nBayBCtlPullRMS{} and \nBayBCtlWithin{}; model A gives \nBayAOODPullRMS{} and \nBayACtlPullRMS{}
-(Fig.~\ref{fig:bayes-cal}). The median ratio of epistemic to statistical error is \nBayBOODEpiStat{} on 2p2h and
+(Fig.~\ref{fig:bayes-cal}; all observables in Fig.~\ref{fig:bayes-cal-all}). The median ratio of epistemic to statistical error is \nBayBOODEpiStat{} on 2p2h and
 \nBayBCtlEpiStat{} on the control, so the epistemic band is a minor contribution where the model is inside its
 support and the agreement with the open dataset is governed by the model's residual imperfection rather than by
 its parameter uncertainty.
@@ -559,23 +569,37 @@ its parameter uncertainty.
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_flags_B.png}
 \caption{Per-event epistemic variances of the 2p2h-blind model B on held-out 2p2h events and on in-distribution
-control events: reconstruction-flag logit, multiplicity logits, event-flow sample.}
+control events. Left: variance of the logit of the reconstruction probability (how unsure the model is that the
+event gets a muon candidate). Centre: variance of the prong-count logits, averaged over the nine classes. Right:
+variance of the generated event-level vector (muon, vertex, calorimetry) under re-drawn output weights, summed
+over its nine components. A model that found 2p2h unfamiliar would put the orange histograms to the right of
+the green ones.}
 \label{fig:bayes-flags}
 \end{figure}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_positive_control_B.png}
-\caption{Positive control: the same variances for nominal control events and for the same events perturbed out
-of the training support (hadron momenta $\times 4$, hadron tokens $\times 3$, vertex moved to $z = 2500$\,mm, and
-all three).}
+\caption{Positive control, i.e.\ does the flag fire when it should: the same three variances for the nominal control
+events and for the same events perturbed out of the training support (hadron momenta $\times 4$, hadron tokens
+$\times 3$, vertex moved to $z = 2500$\,mm, outside the training range, and all three). Only the context shift
+separates.}
 \label{fig:bayes-pc}
 \end{figure}
 
 \begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_B.png}
-\caption{Calibration of model B: binned recoil energy and efficiency with the epistemic band from 8 posterior
-draws against the open dataset, on 2p2h and on control events, and the pull distributions.}
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_AB.png}
+\caption{Calibration of model A (top, trained with 2p2h) and model B (bottom, 2p2h blind). Left and centre: binned
+recoil energy and reconstruction probability from the surrogate with the epistemic band from 8 posterior draws,
+against the open dataset with its statistical error, on control events and on the held-out 2p2h events. Right:
+pull distributions over all seven observables and all bins, with a unit normal for reference.}
 \label{fig:bayes-cal}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A/figures/bayes_calibration_B_all.png}
+\caption{All seven binned observables for the 2p2h-blind model B, on control and on held-out 2p2h events, with the
+epistemic bands.}
+\label{fig:bayes-cal-all}
 \end{figure}
 
 \section{Known limitations}

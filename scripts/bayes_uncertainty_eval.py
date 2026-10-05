@@ -59,49 +59,61 @@ fig, axs = plots.plt.subplots(1, 3, figsize=(11, 3.2))
 for ax, k, lab in zip(axs, ["exist", "card", "flow"], ["epistemic var., reco-exists logit", "epistemic var., multiplicity logits", "epistemic var., event flow sample"]):
     lo, hi = np.percentile(np.r_[F_ood[k], F_ctl[k]], [0.5, 99.5]); b = np.logspace(np.log10(max(lo, 1e-8)), np.log10(hi), 50)
     ax.hist(F_ctl[k], bins=b, histtype="step", density=True, color=plots.PALETTE["third"], label=f"control (in distribution), n={len(ctl):,}")
-    ax.hist(F_ood[k], bins=b, histtype="step", density=True, color=plots.PALETTE["model"], label=f"held-out 2p2h, n={len(ood):,}, AUC {R['flags'][k]['ood_auc']:.2f}")
+    ax.hist(F_ood[k], bins=b, histtype="step", density=True, color=plots.PALETTE["model"], label=f"held-out 2p2h, n={len(ood):,}, separation AUC {R['flags'][k]['ood_auc']:.2f}")
     ax.set_xscale("log"); ax.set_xlabel(lab); ax.set_ylabel("density"); ax.legend(frameon=False, fontsize=7)
 plots.save(fig, out / "figures" / f"bayes_flags{a.tag}.png")
 
 # ---------- calibration with K posterior draws ----------
 def binned(idx, draws):
-    """For each draw: sample Tier 0 and the event flow with perturbed last layers; return binned means."""
+    """For each posterior draw: sample Tier 0, multiplicity and the event flow with perturbed last layers; return
+    binned means of several observables against truth variables (fine binning; bins need >= 30 events)."""
     reco_real = d["reco_exists"][idx]; ir = idx[reco_real]
     cls_p, mom_p, mask_p = _pad(d, idx); X, names = event_features(cls_p, mom_p, mask_p, d["ctx"][idx])
     nhad = X[:, names.index("n_had")]; ke = X[:, names.index("sumKE_had")]; muP = X[:, names.index("mu_P")] / 1000
     xr, valid = tf.forward(d["tier1"][ir], d["mu_true"][ir], d["ctx"][ir], rng)
-    ke_edges = np.array([0, 100, 200, 400, 800, 1500, 3000, 6000, 20000]); p_edges = np.array([0, 1, 1.5, 2, 3, 4, 6, 8, 12, 20, 40]); n_edges = np.arange(-0.5, 8.5, 1)
-    def bin_mean(x, y, edges, mask=None):
-        m = []; e_ = []
+    ke_edges = np.logspace(np.log10(30), np.log10(20000), 17); p_edges = np.logspace(np.log10(0.5), np.log10(40), 15); n_edges = np.arange(-0.5, 12.5, 1)
+    def bin_mean(x, y, edges):
+        m, e_ = [], []
         for lo, hi in zip(edges[:-1], edges[1:]):
-            s = (x >= lo) & (x < hi) & (mask if mask is not None else True); s = s & np.isfinite(y)
-            m.append(y[s].mean() if s.sum() > 30 else np.nan); e_.append(y[s].std() / np.sqrt(s.sum()) if s.sum() > 30 else np.nan)
+            s = (x >= lo) & (x < hi) & np.isfinite(y)
+            m.append(y[s].mean() if s.sum() >= 30 else np.nan); e_.append(y[s].std() / np.sqrt(s.sum()) if s.sum() >= 30 else np.nan)
         return np.array(m), np.array(e_)
-    real = {"eff": bin_mean(nhad, reco_real.astype(float), n_edges), "recoil": bin_mean(ke[reco_real][valid], xr[:, 6], ke_edges), "muP": bin_mean(muP[reco_real][valid], xr[:, 0], p_edges)}
-    ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in real}
-    W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "flow")}
+    nreal = d["nprong"][idx].astype(float); nreal[~reco_real] = np.nan
+    spec = {  # name: (x for all events or reco events, real y, edges, x-axis label, y label)
+        "eff_vs_nhad": (nhad, reco_real.astype(float), n_edges, "true hadrons after cuts", "P(reco muon candidate)"),
+        "nprong_vs_nhad": (nhad, nreal, n_edges, "true hadrons after cuts", "mean reco prongs"),
+        "recoil_vs_ke": (ke[reco_real][valid], xr[:, 6], ke_edges, "true hadronic KE [MeV]", "mean log recoil_E [model space]"),
+        "nonvtx100_vs_ke": (ke[reco_real][valid], xr[:, 7], ke_edges, "true hadronic KE [MeV]", "mean log non-vertex E [model space]"),
+        "blobs_vs_ke": (ke[reco_real][valid], xr[:, 8], ke_edges, "true hadronic KE [MeV]", "mean log isolated-blob E [model space]"),
+        "muP_vs_P": (muP[reco_real][valid], xr[:, 0], p_edges, "true muon momentum [GeV]", "mean log P ratio [model space]"),
+        "dthx_vs_P": (muP[reco_real][valid], xr[:, 1], p_edges, "true muon momentum [GeV]", "mean dtheta_x [model space]"),
+    }
+    real = {k: bin_mean(v[0], v[1], v[2]) for k, v in spec.items()}
+    ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in spec}
+    W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "card", "flow")}
     gen = torch.Generator(device=dev); gen.manual_seed(123)
     with torch.no_grad():
         for kdraw in range(draws):
-            for k in ("tier0", "flow"):
+            for k in ("tier0", "card", "flow"):
                 dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
-            S = []
+            torch.manual_seed(kdraw + 7); S = []
             for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
-                s = model.sample(to_dev(b, dev), a.steps); S.append(torch.cat([s["exist"][:, None].float(), s["x1"]], 1).cpu())
-            S = torch.cat(S).numpy()
-            preds["eff"].append(bin_mean(nhad, S[:, 0], n_edges)[0])
-            preds["recoil"].append(bin_mean(ke[reco_real][valid], S[reco_real][valid][:, 7], ke_edges)[0])
-            preds["muP"].append(bin_mean(muP[reco_real][valid], S[reco_real][valid][:, 1], p_edges)[0])
-            torch.manual_seed(kdraw + 7)
-    for k in ("tier0", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
+                s_ = model.sample(to_dev(b, dev), a.steps); S.append(torch.cat([s_["exist"][:, None].float(), s_["nprong"][:, None].float(), s_["x1"]], 1).cpu())
+            S = torch.cat(S).numpy(); ex = S[:, 0] > 0; npr = S[:, 1].copy(); npr[~ex] = np.nan
+            preds["eff_vs_nhad"].append(bin_mean(nhad, S[:, 0], n_edges)[0]); preds["nprong_vs_nhad"].append(bin_mean(nhad, npr, n_edges)[0])
+            Sv = S[reco_real][valid]
+            preds["recoil_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 6], ke_edges)[0]); preds["nonvtx100_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 7], ke_edges)[0]); preds["blobs_vs_ke"].append(bin_mean(ke[reco_real][valid], Sv[:, 2 + 8], ke_edges)[0])
+            preds["muP_vs_P"].append(bin_mean(muP[reco_real][valid], Sv[:, 2 + 0], p_edges)[0]); preds["dthx_vs_P"].append(bin_mean(muP[reco_real][valid], Sv[:, 2 + 1], p_edges)[0])
+    for k in ("tier0", "card", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
     out_ = {}
-    for k in real:
+    for k, v in spec.items():
         P = np.array(preds[k]); mu, ep = np.nanmean(P, 0), np.nanstd(P, 0); r_, se = real[k]
-        pull = (mu - r_) / np.sqrt(ep ** 2 + se ** 2 + (ep * 0 + np.nanstd(P, 0) ** 2 / draws))  # include MC error of the draw mean
-        out_[k] = {"real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "pull": pull.tolist()}
+        pull = (mu - r_) / np.sqrt(ep ** 2 + se ** 2 + ep ** 2 / draws)
+        e = v[2]; centers = (np.sqrt(e[:-1] * e[1:]) if e[0] > 0 else 0.5 * (e[:-1] + e[1:])).tolist()
+        out_[k] = {"centers": centers, "xlabel": v[3], "ylabel": v[4], "logx": bool(e[0] > 0 and e[1] / e[0] > 1.1), "real": r_.tolist(), "real_err": se.tolist(), "pred": mu.tolist(), "epistemic": ep.tolist(), "pull": pull.tolist()}
     return out_
 
-C = {"ood": binned(ood, a.draws), "control": binned(ctl, a.draws)}
+C = {"heldout": binned(ood, a.draws), "control": binned(ctl, a.draws)}
 for s_, res in C.items():
     pulls = np.concatenate([np.array(v["pull"]) for v in res.values()]); pulls = pulls[np.isfinite(pulls)]
     eps = np.concatenate([np.array(v["epistemic"]) / np.maximum(np.array(v["real_err"]), 1e-9) for v in res.values()]); eps = eps[np.isfinite(eps)]
@@ -109,19 +121,4 @@ for s_, res in C.items():
     print(f"calibration {s_:8s}: {len(pulls)} bins, pull RMS {R[f'calibration_{s_}']['pull_rms']:.2f}, |pull|<2 in {R[f'calibration_{s_}']['frac_abs_pull_lt2']:.2f}, epistemic/stat median {np.median(eps):.2f}", flush=True)
 R["binned"] = C
 json.dump(R, open(out / f"bayes_uncertainty{a.tag}.json", "w"), indent=1, default=float)
-# figure: binned recoil and efficiency with epistemic bands, OOD vs control, plus pull histogram
-fig, axs = plots.plt.subplots(1, 3, figsize=(12, 3.3))
-ke_c = np.sqrt(np.array([0, 100, 200, 400, 800, 1500, 3000, 6000])[0:] * np.array([100, 200, 400, 800, 1500, 3000, 6000, 20000])); n_c = np.arange(0, 8)
-for (ax, key, xc, xl, yl, logx) in ((axs[0], "recoil", ke_c, "true hadronic KE [MeV]", "mean log recoil_E [model space]", True), (axs[1], "eff", n_c, "true hadrons after cuts", "P(reco muon candidate)", False)):
-    for s_, c, ls in (("control", plots.PALETTE["third"], "s--"), ("ood", plots.PALETTE["model"], "^:")):
-        v = C[s_][key]; r_, se, mu, ep = (np.array(v[k]) for k in ("real", "real_err", "pred", "epistemic"))
-        ax.errorbar(xc, r_, yerr=se, fmt="o", color=c, ms=3, alpha=0.6, label=f"open dataset, {s_}"); ax.plot(xc, mu, ls, color=c, ms=4, label=f"surrogate mean, {s_}"); ax.fill_between(xc, mu - ep, mu + ep, color=c, alpha=0.2, label=f"epistemic band, {s_}" if key == "recoil" else None)
-    if logx: ax.set_xscale("log")
-    ax.set_xlabel(xl); ax.set_ylabel(yl); ax.legend(frameon=False, fontsize=6)
-allp = {s_: np.concatenate([np.array(v["pull"]) for v in C[s_].values()]) for s_ in C}
-b = np.linspace(-6, 6, 25)
-axs[2].hist(allp["control"][np.isfinite(allp["control"])], bins=b, histtype="step", color=plots.PALETTE["third"], label=f"control, RMS {R['calibration_control']['pull_rms']:.2f}")
-axs[2].hist(allp["ood"][np.isfinite(allp["ood"])], bins=b, histtype="step", color=plots.PALETTE["model"], label=f"held-out 2p2h, RMS {R['calibration_ood']['pull_rms']:.2f}")
-axs[2].set_xlabel("pull: (surrogate - open dataset) / total uncertainty"); axs[2].set_ylabel("bins"); axs[2].legend(frameon=False, fontsize=7)
-plots.save(fig, out / "figures" / f"bayes_calibration{a.tag}.png")
 print("done")
