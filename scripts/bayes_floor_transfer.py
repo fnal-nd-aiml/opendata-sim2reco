@@ -39,15 +39,21 @@ for tag in "AB":
         R[tag][variant] = res
         print(f"model {tag} floor variant {variant:8s}: test control RMS {res['all']['ctl_rms']:.2f} ({100*res['all']['ctl_within2']:.0f}% within 2) | held-out 2p2h RMS {res['all']['ood_rms']:.2f} ({100*res['all']['ood_within2']:.0f}% within 2) | per observable 2p2h: " + ", ".join(f"{k[5:]} {res[k]['ood_rms']:.2f}" for k in KEYS if k in res))
 out = pathlib.Path(a.test_dir); json.dump(R, open(out / "floor_transfer.json", "w"), indent=1)
-# figure: pull distributions before / after the floor, model B, rms variant
-fig, axs = plots.plt.subplots(1, 2, figsize=(10, 3.4), sharey=True); b = np.linspace(-6, 6, 49)
-for ax, tag in zip(axs, "AB"):
+# figure: pull distributions before / after the floor, split into the non-calorimetry set (recoil, muon, prong count)
+# and the two non-vertex calorimetric quantities (hard-edge residual), model A left, model B right
+GROUPS = (("non-calorimetry set: recoil, muon $\\log P$ ratio, $\\Delta\\theta_x$, prong count", ("marg_nprong", "marg_recoil", "marg_muP", "marg_dthx")), ("non-vertex energy within 100 mm and isolated-blob energy", ("marg_nonvtx100", "marg_blobs")))
+fig, axs = plots.plt.subplots(2, 2, figsize=(10, 6.4), sharey="row"); b = np.linspace(-6, 6, 49)
+for col, tag in enumerate("AB"):
     T = json.load(open(pathlib.Path(a.train_dir) / f"bayes_uncertainty_{tag}.json"))["binned"]; S = json.load(open(pathlib.Path(a.test_dir) / f"bayes_uncertainty_{tag}.json"))["binned"]
-    for sp, col in (("control", plots.PALETTE["third"]), ("heldout", plots.PALETTE["model"])):
-        p0 = np.concatenate([arr(S[sp][k], "pull")[np.isfinite(arr(S[sp][k], "pull"))] for k in KEYS if k in S[sp]]); p1 = np.concatenate([pulls(S[sp][k], floor_from(T["control"][k], "rms")[0]) for k in KEYS if k in S[sp]])
-        lab = "control (test split)" if sp == "control" else "held-out 2p2h"
-        ax.hist(np.clip(p0, -5.9, 5.9), b, histtype="step", color=col, lw=1.0, ls=":", label=f"{lab}, epistemic only: RMS {np.sqrt(np.mean(p0**2)):.2f}")
-        ax.hist(np.clip(p1, -5.9, 5.9), b, histtype="step", color=col, lw=1.6, label=f"{lab}, + floor from training split: RMS {np.sqrt(np.mean(p1**2)):.2f}")
-    n_ref = len(p1); xx = np.linspace(-6, 6, 300); ax.plot(xx, n_ref * (b[1] - b[0]) * np.exp(-xx ** 2 / 2) / np.sqrt(2 * np.pi), ":", color="gray", lw=1)
-    ax.set_title(f"model {tag}, marginal bin fractions", fontsize=10, loc="left"); ax.set_xlabel("pull"); ax.legend(frameon=False, fontsize=6.5, loc="upper left")
-axs[0].set_ylabel("bins"); plots.save(fig, out / "figures" / "bayes_floor_transfer.png"); print("figure written")
+    for row, (gname, keys) in enumerate(GROUPS):
+        ax = axs[row, col]
+        for sp, c_ in (("control", plots.PALETTE["third"]), ("heldout", plots.PALETTE["model"])):
+            ks = [k for k in keys if k in S[sp]]; p0 = np.concatenate([arr(S[sp][k], "pull")[np.isfinite(arr(S[sp][k], "pull"))] for k in ks]); p1 = np.concatenate([pulls(S[sp][k], floor_from(T["control"][k], "rms")[0]) for k in ks])
+            lab = "control (test split)" if sp == "control" else "held-out 2p2h"
+            ax.hist(np.clip(p0, -5.9, 5.9), b, histtype="step", color=c_, lw=1.0, ls=":", label=f"{lab}, epistemic only: RMS {np.sqrt(np.mean(p0**2)):.2f}")
+            ax.hist(np.clip(p1, -5.9, 5.9), b, histtype="step", color=c_, lw=1.6, label=f"{lab}, + floor: RMS {np.sqrt(np.mean(p1**2)):.2f}, {100*(np.abs(p1)<2).mean():.0f}% within 2")
+        xx = np.linspace(-6, 6, 300); ax.plot(xx, len(p1) * (b[1] - b[0]) * np.exp(-xx ** 2 / 2) / np.sqrt(2 * np.pi), ":", color="gray", lw=1)
+        ax.set_title(f"model {tag}: {gname}", fontsize=8.5, loc="left"); ax.legend(frameon=False, fontsize=6.3, loc="upper left")
+        if row == 1: ax.set_xlabel("pull")
+        if col == 0: ax.set_ylabel("bins")
+plots.save(fig, out / "figures" / "bayes_floor_transfer.png"); print("figure written")

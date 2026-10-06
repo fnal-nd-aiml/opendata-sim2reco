@@ -19,6 +19,12 @@ for label, key in (("all marginal bins", None), ("prong count", "marg_nprong"), 
     o = (mpull("bayes_1A", "A", "control", key), mpull("bayes_1A", "A", "heldout", key)); n = (mpull("bayes_1A_z", "A", "control", key), mpull("bayes_1A_z", "A", "heldout", key))
     rows.append(f"marginal pull RMS, {label} (control / 2p2h) & {o[0]:.2f} / {o[1]:.2f} & {n[0]:.2f} / {n[1]:.2f} \\\\")
     k2 = (key or "all").replace("marg_", "").replace("100", "").title(); M[f"nZCPull{k2}OldCtl"], M[f"nZCPull{k2}OldOOD"], M[f"nZCPull{k2}NewCtl"], M[f"nZCPull{k2}NewOOD"] = f"{o[0]:.2f}", f"{o[1]:.2f}", f"{n[0]:.2f}", f"{n[1]:.2f}"
+NC = ("marg_nprong", "marg_recoil", "marg_muP", "marg_dthx")  # non-calorimetry set: without the two non-vertex calorimetric quantities
+def mpull_set(d, tag, sp, keys):
+    U = json.load(open(R / d / f"bayes_uncertainty_{tag}.json"))["binned"][sp]; pl = np.concatenate([np.array(U[k]["pull"], float) for k in keys]); pl = pl[np.isfinite(pl)]; return float(np.sqrt(np.mean(pl ** 2)))
+o = (mpull_set("bayes_1A", "A", "control", NC), mpull_set("bayes_1A", "A", "heldout", NC)); n = (mpull_set("bayes_1A_z", "A", "control", NC), mpull_set("bayes_1A_z", "A", "heldout", NC))
+rows.append(f"marginal pull RMS, non-calorimetry set (control / 2p2h) & {o[0]:.2f} / {o[1]:.2f} & {n[0]:.2f} / {n[1]:.2f} \\\\")
+M["nZCPullNoncaloOldCtl"], M["nZCPullNoncaloOldOOD"], M["nZCPullNoncaloNewCtl"], M["nZCPullNoncaloNewOOD"] = f"{o[0]:.2f}", f"{o[1]:.2f}", f"{n[0]:.2f}", f"{n[1]:.2f}"
 rows.append("\\midrule")
 ho = hours("m2_1A") + hours("m3_1A"); hn = hours("m2_1A_z") + hours("m3_1A_z"); rows.append(f"training time per model, both stages & {ho:.1f}\\,h & {hn:.1f}\\,h \\\\")
 M["nZCHoursOld"], M["nZCHoursNew"] = f"{ho:.1f}", f"{hn:.1f}"; M["nZCHoursMtwoNew"], M["nZCHoursMthreeNew"] = f"{hours('m2_1A_z'):.1f}", f"{hours('m3_1A_z'):.1f}"

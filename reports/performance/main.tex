@@ -609,8 +609,9 @@ both sides.
 \input{../m3_1A_z/tables/zero_compare.tex}
 \caption{Previous model (exact zeros dequantised) against the present zero-flag model, both at 10\,MeV with
 neutrons. Closure AUC as marginal / truth-conditional; marginal pull RMS over the bins of
-Table~\ref{tab:bayes-bins}, model A, test control / held-out 2p2h, epistemic term only; training time for both
-stages on one RTX~3090.}
+Table~\ref{tab:bayes-bins}, model A, test control / held-out 2p2h, epistemic term only, for all observables and
+for the non-calorimetry set (without the two non-vertex calorimetric quantities); training time for both stages
+on one RTX~3090.}
 \label{tab:zero-compare}
 \end{table}
 \FloatBarrier
@@ -761,20 +762,13 @@ observables, the recoil,
 the muon momentum ratio and angle and the prong count, the pulls with the epistemic term alone are
 \nCIBMargCtlRMS{} on the control and \nCIBMargOODRMS{} on 2p2h for model B (\nCIAMargCtlRMS{} and
 \nCIAMargOODRMS{} for A), and with the floor \nCIBFloorCtlRMS{} and \nCIBFloorOODRMS{} (\nCIBFloorOODWithin{} of
-bins within two) for B and \nCIAFloorCtlRMS{} and \nCIAFloorOODRMS{} for A (Fig.~\ref{fig:bayes-ci}); the
+bins within two) for B and \nCIAFloorCtlRMS{} and \nCIAFloorOODRMS{} for A (Fig.~\ref{fig:bayes-floor}, upper row; Table~\ref{tab:floor}); the
 conditional-mean pulls are \nCIBCondCtlRMS{} and \nCIBCondOODRMS{}. For this set the budget is calibrated on
 the held-out mode to within the statistics of the test, and the blind model is covered as well as the full one.
 Leaving out only the isolated-blob energy gives \nNBBFloorOODRMS{} (B) and \nNBAFloorOODRMS{} (A) on 2p2h with
 the floor, so the non-vertex energy alone would still be covered to within ten percent. The closure test of
 Section~\ref{sec:perf} restricted to the same set is in Table~\ref{tab:closure-ci}.
-
-\begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{../bayes_1A_z/figures/bayes_pulls_subset_CI.png}
-\caption{Marginal pulls over the non-calorimetry observable set (recoil, muon momentum ratio and angle, prong
-count), epistemic term only (dotted) and with the model-error floor from the training split (solid), for the
-test control and held-out 2p2h, model A (left) and model B (right).}
-\label{fig:bayes-ci}
-\end{figure} Two qualifications apply. The floor is a
+ Two qualifications apply. The floor is a
 distribution-level object, a relative error on bin fractions per observable and region measured on the open
 dataset, not a per-event width, and it does not grow outside the support; on 2p2h, a composition shift inside the
 support, the floor does the work and the epistemic term is negligible. Whether the epistemic term grows enough
@@ -785,7 +779,9 @@ control above says the last layer reacts to context, not to kinematics.
 \includegraphics[width=\textwidth]{../bayes_1A_z/figures/bayes_floor_transfer.png}
 \caption{Marginal pulls with the epistemic term only (dotted) and with the model-error floor derived on the
 training-split control added in quadrature (solid), for the test-split control and held-out 2p2h, model A (left)
-and model B (right). Unit normal for reference.}
+and model B (right). Upper row: the non-calorimetry set (recoil, muon momentum ratio and angle, prong count);
+lower row: the two non-vertex calorimetric quantities that carry the hard-edge residual. Unit normal for
+reference.}
 \label{fig:bayes-floor}
 \end{figure}
 
@@ -797,6 +793,8 @@ and model B (right). Unit normal for reference.}
 \midrule
 model A, all marginal bins & \nBayACtlMargPullRMS{} & \nFloorARmsCtlRMS{} & \nBayAOODMargPullRMS{} & \nFloorARmsOODRMS{} \\
 model B, all marginal bins & \nBayBCtlMargPullRMS{} & \nFloorBRmsCtlRMS{} & \nBayBOODMargPullRMS{} & \nFloorBRmsOODRMS{} \\
+model A, non-calorimetry set & \nCIAMargCtlRMS{} & \nCIAFloorCtlRMS{} & \nCIAMargOODRMS{} & \nCIAFloorOODRMS{} \\
+model B, non-calorimetry set & \nCIBMargCtlRMS{} & \nCIBFloorCtlRMS{} & \nCIBMargOODRMS{} & \nCIBFloorOODRMS{} \\
 \midrule
 model B, recoil & & & & \nFloorBRmsRecoilOOD{} \\
 model B, non-vertex energy & & & & \nFloorBRmsNvtxOOD{} \\
