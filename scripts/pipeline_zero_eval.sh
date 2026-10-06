@@ -14,6 +14,6 @@ run "cal B train" $PY scripts/bayes_uncertainty_eval.py reports/bayes_1A_z_train
 run "cal A train" $PY scripts/bayes_uncertainty_eval.py reports/bayes_1A_z_trainctl --model reports/m3_1A_z --tag _A --draws 8 --n-control 300000 --control-split 0 > $L/cal_A_train.log 2>&1
 run "figures"     $PY scripts/bayes_binned_figures.py reports/bayes_1A_z --draws 8 > $L/figures.log 2>&1
 run "floor"       $PY scripts/bayes_floor_transfer.py reports/bayes_1A_z reports/bayes_1A_z_trainctl > $L/floor.log 2>&1
-run "pos control" $PY scripts/bayes_positive_control.py reports/bayes_1A_z --model reports/m3_1A_z_no2p2h > $L/pc.log 2>&1
+run "pos control" $PY scripts/bayes_positive_control.py reports/bayes_1A_z --model reports/m3_1A_z_no2p2h --tag _B > $L/pc.log 2>&1
 run "NuWro A"     $PY scripts/surrogate_to_ntuple.py reports/m3_1A_z data/nuwro_2026-10/nuwro_me_fhc_tracker.truth.parquet data/nuwro_2026-10/surrogate_Az_nuwro_me_fhc_tracker.root --epi-draws 8 > $L/nuwro_A.log 2>&1
 echo "$(stamp) PIPELINE ZERO EVAL DONE"

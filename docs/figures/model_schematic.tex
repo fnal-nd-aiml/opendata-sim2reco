@@ -31,7 +31,7 @@
 \node[box, draw=cin, below=of gen] (pipe) {\textbf{Input pipeline}\\
   drop $\nu$, pseudo-particles, remnants; hadron (incl.\ $n$) KE $\ge 10$\,MeV\\
   pdg $\to$ 12 species classes (incl.\ $n$); $\pi^0$ kept as one token};
-\node[box, draw=cin, below=of pipe] (tok) {\textbf{Tokens} (7.3 per event on average)\\
+\node[box, draw=cin, below=of pipe] (tok) {\textbf{Tokens} (7.6 per event on average)\\
   class embedding $\oplus$ MLP$(\mathrm{asinh}\,\vec p,\ \log|p|,\ \hat p)$ $\to$ 128\\
   \textbf{global token} $=$ MLP$(x,y,z,Z,A)$ $\to$ 128};
 
@@ -45,7 +45,8 @@
 % ---------------- classification heads ----------------
 \node[head, draw=ccls, right=14mm of enc.east, anchor=west, yshift=24mm] (t0) {\textbf{Event flag heads} (MLPs on $z$)\\
   $p(\text{reco muon candidate}\mid z)$, $p(\text{MINOS matched}\mid z)$,\\
-  $p(\text{charge}<0\mid z)$ \hfill 3 Bernoulli\\
+  $p(\text{charge}<0\mid z)$; zero flags $p(E_\text{non-vtx\,100}{=}0\mid z)$,\\
+  $p(E_\text{blobs}{=}0\mid z)$ \hfill 5 Bernoulli\\
   \textcolor{cbay}{last layer: Gaussian posterior (Laplace, frozen backbone)}};
 \node[head, draw=ccls, below=8mm of t0.south west, anchor=north west] (card) {\textbf{Hadron multiplicity head} (MLP on $z$)\\
   $p(N_\text{prongs}\mid z)$, $N\in\{0,\dots,8\}$ \hfill categorical\\
@@ -61,6 +62,7 @@
   $x_1 = $ muon $(\log P/P_\text{true},\ \Delta\theta_x,\ \Delta\theta_y)$,\\
   \hphantom{$x_1 = $} vertex residual $(\Delta x,\Delta y,\Delta z)$,\\
   \hphantom{$x_1 = $} $\log E$: recoil, non-vertex $100$\,mm, isolated blobs\\
+  zero-flagged energy dims masked: the flow models the positive part only\\
   velocity MLP 5$\times$768; cond.\ $c_1=[z,\ \text{flags},\ \text{emb}(N)]$\\
   \textcolor{cbay}{output layer: exact Bayesian-linear-regression posterior}};
 \node[head, draw=cgen, below=8mm of t1.south west, anchor=north west] (t2) {\textbf{Prong set flow} (masked flow matching, $N\times 10$)\\

@@ -1,0 +1,20 @@
+\begin{tabular}{lcc}
+\toprule
+ & previous model & zero-flag model \\
+\midrule
+closure AUC, A, full test & 0.528 / 0.524 & 0.515 / 0.525 \\
+closure AUC, B, full test & 0.530 / 0.526 & 0.518 / 0.526 \\
+closure AUC, A on held-out 2p2h & 0.548 / 0.532 & 0.507 / 0.508 \\
+closure AUC, B on held-out 2p2h & 0.556 / 0.538 & 0.510 / 0.503 \\
+\midrule
+marginal pull RMS, all marginal bins (control / 2p2h) & 1.66 / 1.56 & 1.40 / 1.42 \\
+marginal pull RMS, prong count (control / 2p2h) & 1.35 / 1.07 & 0.99 / 0.85 \\
+marginal pull RMS, recoil (control / 2p2h) & 1.25 / 1.18 & 1.29 / 1.12 \\
+marginal pull RMS, non-vertex energy (control / 2p2h) & 2.24 / 2.00 & 1.58 / 1.61 \\
+marginal pull RMS, isolated blobs (control / 2p2h) & 2.37 / 2.50 & 1.95 / 2.37 \\
+marginal pull RMS, muon $\log P$ ratio (control / 2p2h) & 1.22 / 0.88 & 1.22 / 0.87 \\
+marginal pull RMS, muon $\Delta\theta_x$ (control / 2p2h) & 0.99 / 0.88 & 0.93 / 0.80 \\
+\midrule
+training time per model, both stages & 10.2\,h & 2.7\,h \\
+\bottomrule
+\end{tabular}
