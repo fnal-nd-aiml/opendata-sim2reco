@@ -9,7 +9,9 @@
 \input{../m3_1A_z/numbers.tex}
 \input{../m3_1A_z/zero_compare_macros.tex}
 \input{../nuwro_compare/macros.tex}
-\input{../bayes_1A_z/noblobs_macros.tex}
+\input{../bayes_1A_z/subset_NB_macros.tex}
+\input{../bayes_1A_z/subset_CI_macros.tex}
+\input{../m3_1A_z/closure_ccinc_macros.tex}
 
 \title{A generative surrogate of MINERvA reconstruction\\ trained on the open-data Monte Carlo: performance report}
 \author{L.~Wan\thanks{lwan@fnal.gov}}
@@ -361,7 +363,9 @@ population. Right: vertex class marginals (0 unsnapped, 4 nearest plane, 8 farth
 
 Table~\ref{tab:closure} collects the classifier tests on the event-level variables and Table~\ref{tab:closure2}
 those on the prongs and the vertex. On the nine event-level variables the classifier reaches AUC
-\nAUCmarg{} without and \nAUCcond{} with the truth features; no block exceeds
+\nAUCmarg{} without and \nAUCcond{} with the truth features (Table~\ref{tab:closure-ci} repeats the test on the
+CC-inclusive subset without the two calorimetric edge quantities, for both models and for the 2p2h events, with
+the classifier recipe rerun on fresh samples); no block exceeds
 \nAUCblockMax{} alone or \nAUCcondBlockMax{} conditionally, and the flags and multiplicity given the truth are at
 \nAUCflags{}. On the prong summaries ($N$, prongs with kinematics, proton fits, exiting prongs, leading
 $P_\pi$ and angle, $\sum P_\pi$, maximum score) the AUC is \nAUCprong{} and \nAUCprongCond{}; on the truth
@@ -373,6 +377,15 @@ imperfection of the plane-class head. The design target for these tests was 0.55
 \caption{Closure classifiers on the event-level variables: overall, by block, by single variable, and with the
 truth features added.}
 \label{tab:closure}
+\end{table}
+
+\begin{table}[h]\centering\small
+\input{../m3_1A_z/tables/closure_ccinc.tex}
+\caption{Closure AUC (0.5 is indistinguishable) with the evaluation's classifier recipe, on the nine generated
+variables and on the CC-inclusive subset that leaves out the non-vertex and isolated-blob energies, for the full
+test split and for the held-out 2p2h events, models A and B. ``+ truth'' adds the truth summary features, the
+flags and the multiplicity to the classifier.}
+\label{tab:closure-ci}
 \end{table}
 
 \begin{table}[h]\centering
@@ -734,12 +747,31 @@ the blob energy, at RMS \nFloorBRmsBlobsOOD{} (B) and \nFloorARmsBlobsOOD{} (A):
 pairs, neutrons make isolated blobs, and the 2p2h deviation is larger than the control's for both models, the
 blind one slightly more so, which is the only place the blindness is visible. A conservative variant with the
 floor scaled by 1.5 gives \nFloorBConsOODRMS{} overall on 2p2h and \nFloorBConsBlobsOOD{} for the blobs, at the
-cost of over-covering the control at \nFloorBConsCtlRMS{}. Leaving the isolated-blob energy out altogether, as an
-analysis that does not use it would, the marginal pulls with the epistemic term alone are \nNBBMargCtlRMS{} on
-the control and \nNBBMargOODRMS{} on 2p2h for model B (\nNBAMargCtlRMS{} and \nNBAMargOODRMS{} for A), and with
-the floor \nNBBFloorCtlRMS{} and \nNBBFloorOODRMS{} (\nNBBFloorOODWithin{} of bins within two) for B and
-\nNBAFloorCtlRMS{} and \nNBAFloorOODRMS{} for A: the budget is calibrated on the held-out mode to within the
-statistics of the test, and the blind model is covered as well as the full one. Two qualifications apply. The floor is a
+cost of over-covering the control at \nFloorBConsCtlRMS{}.
+
+\paragraph{The CC-inclusive observable set.} The two quantities that carry the hard-edge residual are not used
+by a CC-inclusive measurement, which takes from the reconstruction the muon candidate and its MINOS match and
+charge, the muon momentum and angle, the vertex, the calorimetric recoil and the prong multiplicity; the
+non-vertex energy within 100\,mm and the isolated-blob energy belong to the low-recoil and quasi-elastic-like
+analyses. The budget is therefore also quoted for that set, with the two calorimetric edge quantities left out
+of the pulls but not out of the model or the output file. Over the remaining marginal observables, the recoil,
+the muon momentum ratio and angle and the prong count, the pulls with the epistemic term alone are
+\nCIBMargCtlRMS{} on the control and \nCIBMargOODRMS{} on 2p2h for model B (\nCIAMargCtlRMS{} and
+\nCIAMargOODRMS{} for A), and with the floor \nCIBFloorCtlRMS{} and \nCIBFloorOODRMS{} (\nCIBFloorOODWithin{} of
+bins within two) for B and \nCIAFloorCtlRMS{} and \nCIAFloorOODRMS{} for A (Fig.~\ref{fig:bayes-ci}); the
+conditional-mean pulls are \nCIBCondCtlRMS{} and \nCIBCondOODRMS{}. For this set the budget is calibrated on
+the held-out mode to within the statistics of the test, and the blind model is covered as well as the full one.
+Leaving out only the isolated-blob energy gives \nNBBFloorOODRMS{} (B) and \nNBAFloorOODRMS{} (A) on 2p2h with
+the floor, so the non-vertex energy alone would still be covered to within ten percent. The closure test of
+Section~\ref{sec:perf} restricted to the same set is in Table~\ref{tab:closure-ci}.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../bayes_1A_z/figures/bayes_pulls_subset_CI.png}
+\caption{Marginal pulls over the CC-inclusive observable set (recoil, muon momentum ratio and angle, prong
+count), epistemic term only (dotted) and with the model-error floor from the training split (solid), for the
+test control and held-out 2p2h, model A (left) and model B (right).}
+\label{fig:bayes-ci}
+\end{figure} Two qualifications apply. The floor is a
 distribution-level object, a relative error on bin fractions per observable and region measured on the open
 dataset, not a per-event width, and it does not grow outside the support; on 2p2h, a composition shift inside the
 support, the floor does the work and the epistemic term is negligible. Whether the epistemic term grows enough
