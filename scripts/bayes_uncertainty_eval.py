@@ -114,7 +114,7 @@ def binned(idx, draws, medges=None):
                 dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
             torch.manual_seed(kdraw + 7); S = []
             for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
-                s_ = model.sample(to_dev(b, dev), a.steps); S.append(torch.cat([s_["exist"][:, None].float(), s_["nprong"][:, None].float(), s_["x1"]], 1).cpu())
+                s_ = model.sample(to_dev(b, dev), a.steps, prongs=False); S.append(torch.cat([s_["exist"][:, None].float(), s_["nprong"][:, None].float(), s_["x1"]], 1).cpu())
             S = torch.cat(S).numpy(); ex = S[:, 0] > 0; npr = S[:, 1].copy(); npr[~ex] = np.nan
             Sv = S[reco_real][valid]; kv = ke[reco_real][valid]; pv_ = muP[reco_real][valid]
             draws_ = {"eff_vs_nhad": bin_mean(nhad, S[:, 0], n_edges), "nprong_vs_nhad": bin_mean(nhad, npr, n_edges),

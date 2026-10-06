@@ -61,11 +61,12 @@ def main():
     ds = CompactDataset(d, np.arange(len(truth)), tf, a.seed, prong_tf=ptf)  # ptf=None -> Tier 1 only
     loader = lambda: DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4)
 
-    def generate(seed):
-        """One full generation pass; a fixed seed gives the same base noise, so repeated passes differ only through the weights."""
+    def generate(seed, prongs=True):
+        """One full generation pass; a fixed seed gives the same base noise, so repeated passes differ only through the weights.
+        prongs=False skips the prong-set flow (the epistemic draws use only event-level outputs and the vertex class)."""
         torch.manual_seed(seed); S, PR, PM, VC, P0 = [], [], [], [], []
         for b in loader():
-            s = model.sample(to_dev(b, "cuda"), a.steps)
+            s = model.sample(to_dev(b, "cuda"), a.steps, prongs=prongs)
             S.append(torch.cat([s["exist"][:, None].float(), s["minos"][:, None].float(), s["charge"][:, None].float(), s["nprong"][:, None].float(), s["x1"]], 1).cpu())
             P0.append(s["p0"].cpu())
             if tier2: PR.append(s["prongs"].cpu()); PM.append(s["pmask"].cpu()); VC.append(s["vclass"].cpu())
@@ -98,7 +99,7 @@ def main():
         for k_ in range(a.epi_draws):
             for k in ("tier0", "card", "flow") + (("prong",) if tier2 else ()) + (("zero",) if model.zero_flags else ()):
                 dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
-            draws.append(generate(a.seed))
+            draws.append(generate(a.seed, prongs=False))
         for k in layers: layers[k].weight.data, layers[k].bias.data = W0[k]
         epi["draws"] = draws
         print(f"epistemic uncertainties from {a.epi_draws} posterior draws (common noise)", flush=True)

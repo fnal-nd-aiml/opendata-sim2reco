@@ -98,8 +98,9 @@ class Surrogate(nn.Module):
         return torch.sigmoid(self.tier0(z)), F.softmax(self.card(z), -1), z
 
     @torch.no_grad()
-    def sample(self, b, n_steps=64, teacher_flags=None, teacher_nprong=None):
-        """Sample Tier 0 flags, N prongs and Tier 1 (model space). Optionally condition on given flags/N."""
+    def sample(self, b, n_steps=64, teacher_flags=None, teacher_nprong=None, prongs=True):
+        """Sample Tier 0 flags, N prongs and Tier 1 (model space). Optionally condition on given flags/N.
+        prongs=False skips the prong-set flow (85% of the sampling cost) when only event-level outputs are needed."""
         p0, pn, z = self.predict_probs(b)
         u = torch.rand_like(p0)
         # The heads are conditional probabilities: p(reco exists | X), p(MINOS ok | reco), p(charge<0 | MINOS ok).
@@ -123,9 +124,9 @@ class Surrogate(nn.Module):
         if self.tier2:
             pv = F.softmax(self.vtx_logits(cond, b["vphase"]), -1)
             out["vclass"] = torch.multinomial(pv, 1)[:, 0]; out["pv"] = pv
-            _, h = self.encode(b, return_tokens=True)
+            h = self.encode(b, return_tokens=True)[1] if prongs else None
             N = int(min(nprong.max().item(), PRONG_DIM_CAP)) if len(nprong) else 0
             pmask = torch.arange(max(N, 1), device=z.device)[None, :] < nprong.clamp(max=PRONG_DIM_CAP)[:, None]
             out["pmask"] = pmask
-            out["prongs"] = self.prong.sample(torch.cat([cond, x1], -1), h, b["mask"], pmask, n_steps) if N > 0 else torch.zeros(len(z), 1, PRONG_DIM, device=z.device)
+            out["prongs"] = self.prong.sample(torch.cat([cond, x1], -1), h, b["mask"], pmask, n_steps) if (N > 0 and prongs) else torch.zeros(len(z), 1, PRONG_DIM, device=z.device)
         return out
