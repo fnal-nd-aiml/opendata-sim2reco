@@ -12,7 +12,7 @@ def hours(d): h = json.load(open(R / d / "history.json")); return h[-1]["time"] 
 rows = []
 for name, old, new in (("A, full test", "m3_1A", "m3_1A_z"), ("B, full test", "m3_1A_no2p2h", "m3_1A_z_no2p2h"), ("A on held-out 2p2h", "m3_1A_on2p2h", "m3_1A_z_on2p2h"), ("B on held-out 2p2h", "m3_1A_no2p2h_on2p2h", "m3_1A_z_no2p2h_on2p2h")):
     (om, oc), (nm, nc) = auc(old), auc(new); rows.append(f"closure AUC, {name} & {om:.3f} / {oc:.3f} & {nm:.3f} / {nc:.3f} \\\\")
-    key = name.replace(",", "").replace(" ", "").replace("-", "")
+    key = name.replace(",", "").replace(" ", "").replace("-", "").replace("2p2h", "TwoPTwoH")
     M[f"nZC{key}OldM"], M[f"nZC{key}OldC"], M[f"nZC{key}NewM"], M[f"nZC{key}NewC"] = f"{om:.3f}", f"{oc:.3f}", f"{nm:.3f}", f"{nc:.3f}"
 rows.append("\\midrule")
 for label, key in (("all marginal bins", None), ("prong count", "marg_nprong"), ("recoil", "marg_recoil"), ("non-vertex energy", "marg_nonvtx100"), ("isolated blobs", "marg_blobs"), ("muon $\\log P$ ratio", "marg_muP"), ("muon $\\Delta\\theta_x$", "marg_dthx")):

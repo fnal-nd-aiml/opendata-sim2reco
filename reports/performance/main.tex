@@ -463,11 +463,11 @@ admitting neutrons as tokens, with the threshold lowered to 10\,MeV, brings the 
 truth features from \nVKEfiftyTwoPAUCcond{} to \nVKEtennTwoPAUCcond{}, the calorimetric block from
 \nVKEfiftyTwoPCalo{} to \nVKEtennTwoPCalo{}, the recoil $W_1$ from \nVKEfiftyTwoPWoneRecoil{} to
 \nVKEtennTwoPWoneRecoil{}, and reproduces the neutron-induced fake prongs. The remaining 2p2h residual of that
-model (\nZCAonheldout2p2hOldM{} / \nZCAonheldout2p2hOldC{}) sat in the isolated-blob energy, the quantity most
+model (\nZCAonheldoutTwoPTwoHOldM{} / \nZCAonheldoutTwoPTwoHOldC{}) sat in the isolated-blob energy, the quantity most
 sensitive to neutrons, and turned out to be a rendering problem of the flow at the spike of exact zeros rather
 than a physics or coverage problem; the zero flags of Section~\ref{sec:zero} remove it
-(\nZCAonheldout2p2hNewM{} / \nZCAonheldout2p2hNewC{}), and the blind model follows
-(\nZCBonheldout2p2hNewM{} / \nZCBonheldout2p2hNewC{}). The residual was a limitation of the input definition
+(\nZCAonheldoutTwoPTwoHNewM{} / \nZCAonheldoutTwoPTwoHNewC{}), and the blind model follows
+(\nZCBonheldoutTwoPTwoHNewM{} / \nZCBonheldoutTwoPTwoHNewC{}). The residual was a limitation of the input definition
 and of the output representation, not of the extrapolation, and it is closed.
 
 \paragraph{How large is the loss of fidelity, and is it resolved?} The surrogate represents the aleatoric
@@ -572,8 +572,8 @@ unchanged (10\,MeV with neutrons).
 
 Table~\ref{tab:zero-compare} compares the previous and the present model on the same tests. The full-split
 closure improves by a hundredth on the reconstructed vector and is unchanged with the truth features; the 2p2h
-closure improves from \nZCAonheldout2p2hOldM{} / \nZCAonheldout2p2hOldC{} to \nZCAonheldout2p2hNewM{} /
-\nZCAonheldout2p2hNewC{}, so the residual the holdout had left is removed; the marginal pulls of the two spike
+closure improves from \nZCAonheldoutTwoPTwoHOldM{} / \nZCAonheldoutTwoPTwoHOldC{} to \nZCAonheldoutTwoPTwoHNewM{} /
+\nZCAonheldoutTwoPTwoHNewC{}, so the residual the holdout had left is removed; the marginal pulls of the two spike
 quantities fall from \nZCPullNonvtxOldCtl{} and \nZCPullBlobsOldCtl{} to \nZCPullNonvtxNewCtl{} and
 \nZCPullBlobsNewCtl{} on the control, the prong-count pulls from \nZCPullNprongOldCtl{} to
 \nZCPullNprongNewCtl{}, and the muon and recoil pulls are unchanged within their run-to-run variation. What

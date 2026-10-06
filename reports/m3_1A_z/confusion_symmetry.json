@@ -1,0 +1,6 @@
+{
+ "joint_max_asymmetry": 0.0006284705096179788,
+ "joint_max_entry": 0.26064819971042624,
+ "sample_vs_sample_max_asymmetry": 0.0010421473007589388,
+ "n_reco_events": 125702
+}
