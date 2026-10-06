@@ -9,6 +9,7 @@
 \input{../m3_1A_z/numbers.tex}
 \input{../m3_1A_z/zero_compare_macros.tex}
 \input{../nuwro_compare/macros.tex}
+\input{../bayes_1A_z/noblobs_macros.tex}
 
 \title{A generative surrogate of MINERvA reconstruction\\ trained on the open-data Monte Carlo: performance report}
 \author{L.~Wan\thanks{lwan@fnal.gov}}
@@ -733,7 +734,12 @@ the blob energy, at RMS \nFloorBRmsBlobsOOD{} (B) and \nFloorARmsBlobsOOD{} (A):
 pairs, neutrons make isolated blobs, and the 2p2h deviation is larger than the control's for both models, the
 blind one slightly more so, which is the only place the blindness is visible. A conservative variant with the
 floor scaled by 1.5 gives \nFloorBConsOODRMS{} overall on 2p2h and \nFloorBConsBlobsOOD{} for the blobs, at the
-cost of over-covering the control at \nFloorBConsCtlRMS{}. Two qualifications apply. The floor is a
+cost of over-covering the control at \nFloorBConsCtlRMS{}. Leaving the isolated-blob energy out altogether, as an
+analysis that does not use it would, the marginal pulls with the epistemic term alone are \nNBBMargCtlRMS{} on
+the control and \nNBBMargOODRMS{} on 2p2h for model B (\nNBAMargCtlRMS{} and \nNBAMargOODRMS{} for A), and with
+the floor \nNBBFloorCtlRMS{} and \nNBBFloorOODRMS{} (\nNBBFloorOODWithin{} of bins within two) for B and
+\nNBAFloorCtlRMS{} and \nNBAFloorOODRMS{} for A: the budget is calibrated on the held-out mode to within the
+statistics of the test, and the blind model is covered as well as the full one. Two qualifications apply. The floor is a
 distribution-level object, a relative error on bin fractions per observable and region measured on the open
 dataset, not a per-event width, and it does not grow outside the support; on 2p2h, a composition shift inside the
 support, the floor does the work and the epistemic term is negligible. Whether the epistemic term grows enough
