@@ -8,6 +8,7 @@
 \usepackage{placeins}
 \input{../m3_1A_z/numbers.tex}
 \input{../m3_1A_z/zero_compare_macros.tex}
+\input{../nuwro_compare/macros.tex}
 
 \title{A generative surrogate of MINERvA reconstruction\\ trained on the open-data Monte Carlo: performance report}
 \author{L.~Wan\thanks{lwan@fnal.gov}}
@@ -925,6 +926,110 @@ surrogate-side uncertainty can be read directly. The bins are those of Table~\re
 
 \FloatBarrier
 
+
+\section{First application: NuWro through the surrogate}
+\label{sec:nuwro}
+
+The surrogate's purpose is to give reconstructed-level predictions for events the released simulation does not
+contain, and a second generator is the first realistic case. A NuWro 25.11.1 sample of \nNWnNuwro{} CC $\nu_\mu$
+events on the tracker's scintillator composition (carbon 91\%, hydrogen 5\%, oxygen 2.5\%, titanium, silicon,
+aluminium, nitrogen, chlorine; unweighted within each nucleus) was converted to the open-dataset Truth layout:
+the post-FSI particles rotated from the beam frame into detector coordinates, and, since NuWro has no detector
+geometry, each event given a vertex drawn from the open dataset's fiducial tracker events with the same target
+nucleus, so that the position-to-nucleus correlation of the real detector is kept. The reference is a sample of
+\nNWnGenie{} open-dataset events with the true vertex in the same fiducial tracker volume, for which the open
+dataset's own reconstruction is available. Both samples are run through model A, and three things are compared:
+the open dataset's reconstruction of the GENIE events, the surrogate on the GENIE events, and the surrogate on
+the NuWro events. The first pair is the closure of Section~\ref{sec:perf} on this sample; the second pair is the
+generator difference as seen through the detector.
+
+\paragraph{What differs at truth level.} Table~\ref{tab:nw-truth} and Fig.~\ref{fig:nw-truth} show the inputs.
+The channel composition differs as expected between the generators: NuWro has \nNWNuwFracRES{} resonant and
+\nNWNuwFracDIS{} deep-inelastic events against \nNWGenFracRES{} and \nNWGenFracDIS{} in GENIE, with the
+quasi-elastic and 2p2h shares equal; the lepton-defined $W$ shows NuWro's sharper quasi-elastic peak and dip.
+NuWro produces fewer hadron tokens above 10\,MeV (\nNWNuwMeanNhad{} against \nNWGenMeanNhad{} per event) while
+carrying more hadronic kinetic energy (\nNWNuwMeanKeh{} against \nNWGenMeanKeh{}\,MeV), i.e.\ fewer and harder
+hadrons. One difference is not physics: the NuWro run was driven by a binned flux card whose high-energy tail is
+harder than the flux of the open-dataset simulation, visible above 12\,GeV in $E_\nu$ and in the muon momentum;
+it propagates to the reconstructed muon momentum and should be read as a flux-input difference.
+
+\begin{table}[h]\centering\footnotesize
+\input{../nuwro_compare/tables/truth_composition.tex}
+\caption{Truth-level composition of the two fiducial-tracker samples.}
+\label{tab:nw-truth}
+\end{table}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../nuwro_compare/figures/truth_level.png}
+\caption{Truth-level comparison of the GENIE (open dataset) and NuWro samples: neutrino energy, true muon
+momentum and angle, lepton-defined $Q^2$ and $W$, hadron tokens after the input cuts, true hadronic kinetic
+energy, and channel composition.}
+\label{fig:nw-truth}
+\end{figure}
+
+\paragraph{What differs at reconstructed level.} Figure~\ref{fig:nw-reco} and Table~\ref{tab:nw-reco} give the
+three-way comparison, normalised per truth event so that efficiency differences are visible. The surrogate on
+GENIE reproduces the open dataset on this sample as in Section~\ref{sec:perf}: reconstruction fraction
+\nNWGenRecoFrac{} against \nNWRefRecoFrac{}, zero fractions and mean recoil equal to three digits, ratios within a
+few percent except at the sparse ends. The surrogate on NuWro then shows the generator difference: a
+reconstruction fraction of \nNWNuwRecoFrac{}, a mean recoil of \nNWNuwMeanRecoil{}\,MeV against
+\nNWGenMeanRecoil{}, a recoil spectrum depleted by up to a factor two below 100\,MeV and enhanced by 20 to 30\% in
+the multi-GeV tail, the same pattern in the non-vertex and isolated-blob energies, slightly fewer exact zeros
+(\nNWNuwZeroBlobs{} against \nNWGenZeroBlobs{} for the blobs), and a harder reconstructed muon spectrum above
+7\,GeV that follows the flux tail. These are the fewer-and-harder hadrons of Table~\ref{tab:nw-truth} seen through
+the calorimeter.
+
+\begin{table}[h]\centering\footnotesize
+\input{../nuwro_compare/tables/summary.tex}
+\caption{Reconstructed-level summary per sample. The open dataset's MINOS-match fraction is not attached to the
+reference columns.}
+\label{tab:nw-reco}
+\end{table}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../nuwro_compare/figures/reco_level.png}
+\caption{Reconstructed-level comparison, events per truth event: the open dataset's reconstruction of the GENIE
+events, the surrogate on the same GENIE events, and the surrogate on the NuWro events. Lower panels: surrogate
+on GENIE over open dataset (closure) and surrogate on NuWro over surrogate on GENIE (generator difference). The
+first bin of the two calorimetric quantities holds the exact zeros.}
+\label{fig:nw-reco}
+\end{figure}
+
+\paragraph{The response is a function of the final state.} Figure~\ref{fig:nw-cond} is the check that the
+reconstructed-level differences are the generators' and not the surrogate's. Conditional on truth, the
+reconstruction probability versus neutrino energy, the recoil versus true hadronic kinetic energy and the muon
+momentum response versus true momentum lie on top of each other for the open dataset, the surrogate on GENIE and
+the surrogate on NuWro. The one visible departure, the reconstruction probability at high hadron-token count,
+where NuWro sits two to three percent above GENIE, is a composition effect within the bin, since the two
+generators fill a bin of equal token count with different particles and energies. The marginal distributions
+differ because the inputs differ; the detector response the surrogate applies to them is the same.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../nuwro_compare/figures/conditional_response.png}
+\caption{Detector response conditional on truth for the three samples: reconstruction probability versus true
+neutrino energy and versus hadron-token count, mean $\log_{10}$ of the reconstructed recoil versus true hadronic
+kinetic energy, and median muon momentum response versus true momentum.}
+\label{fig:nw-cond}
+\end{figure}
+
+\paragraph{Does the model find NuWro unfamiliar?} It does not, and it should not. Figure~\ref{fig:nw-epi}
+compares the per-event epistemic quantities of Section~\ref{sec:bayes} between the two samples: the median
+ratios NuWro to GENIE are \nNWEpiExistRatio{} for the reconstruction-flag variance, \nNWEpiCardRatio{} for the
+multiplicity-logit variance and \nNWEpiFlowRatio{} for the event-flow flag, with classifier AUCs of
+\nNWEpiExistAUC{}, \nNWEpiCardAUC{} and \nNWEpiFlowAUC{} between the samples, and the relative epistemic widths of
+the written-out recoil and muon momentum are within a few percent of each other. Every NuWro final state is an
+ordinary set of particles at ordinary momenta on the same nuclei at the same vertices; the generator difference
+is a composition shift inside the training support, the case Section~\ref{sec:holdout} established the surrogate
+transfers across. The uncertainty to attach to the NuWro prediction is therefore the model-error floor of
+Section~\ref{sec:bayes}, measured on the open dataset and carried over unchanged, plus the small epistemic term.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{../nuwro_compare/figures/epistemic_flags.png}
+\caption{Per-event epistemic quantities of the surrogate on the GENIE and on the NuWro samples: reconstruction-flag
+logit variance, mean multiplicity-logit variance and event-flow flag.}
+\label{fig:nw-epi}
+\end{figure}
+\FloatBarrier
 
 \section{Known limitations}
 \label{sec:limits}
