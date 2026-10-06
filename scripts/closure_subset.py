@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Closure AUC (marginal / truth-conditional) with the evaluation's classifier recipe, for all nine generated variables
-and for the CC-inclusive observable set (muon, vertex, recoil; without the non-vertex and isolated-blob energies),
+and for the non-calorimetry observable set (muon, vertex, recoil; without the two non-vertex calorimetric quantities),
 on the full test split and on the held-out 2p2h test events, for models A and B.
 Writes reports/<out>/tables/closure_ccinc.tex and closure_ccinc_macros.tex. Usage: scripts/closure_subset.py --a reports/m3_1A_z --b reports/m3_1A_z_no2p2h --out reports/m3_1A_z"""
 import argparse, glob, json, pathlib, sys
@@ -40,7 +40,7 @@ for tag, D in (("A", a.a), ("B", a.b)):
         r, n = aucs(idx, model, tf, ptf, a.seed); R[f"{tag}_{sname}"] = dict(r, n=n); print(tag, sname, n, {k: round(v, 4) for k, v in r.items()}, flush=True)
         for k, v in r.items(): M[f"nCL{tag}{'Full' if sname == 'full' else 'TwoP'}{k.replace('_marg', 'Marg').replace('_cond', 'Cond').replace('all', 'All').replace('ccinc', 'CI')}"] = f"{v:.3f}"
 out = pathlib.Path(a.out); (out / "tables").mkdir(exist_ok=True)
-tex = ("\\begin{tabular}{lcccc}\n\\toprule\n & \\multicolumn{2}{c}{all nine variables} & \\multicolumn{2}{c}{CC-inclusive set (muon, vertex, recoil)} \\\\\n & marginal & + truth & marginal & + truth \\\\\n\\midrule\n"
+tex = ("\\begin{tabular}{lcccc}\n\\toprule\n & \\multicolumn{2}{c}{all nine variables} & \\multicolumn{2}{c}{non-calorimetry set (muon, vertex, recoil)} \\\\\n & marginal & + truth & marginal & + truth \\\\\n\\midrule\n"
        + "\n".join(f"{lab} & {R[k]['all_marg']:.3f} & {R[k]['all_cond']:.3f} & {R[k]['ccinc_marg']:.3f} & {R[k]['ccinc_cond']:.3f} \\\\" for k, lab in (("A_full", "model A, full test split"), ("B_full", "model B (2p2h blind), full test split"), ("A_twop", "model A, held-out 2p2h events"), ("B_twop", "model B, held-out 2p2h events")))
        + "\n\\bottomrule\n" + "\\end{tabular}\n")
 (out / "tables" / "closure_ccinc.tex").write_text(tex); (out / "closure_ccinc_macros.tex").write_text("".join(f"\\newcommand{{\\{k}}}{{{v}}}\n" for k, v in M.items())); json.dump(R, open(out / "closure_ccinc.json", "w"), indent=1); print(tex)

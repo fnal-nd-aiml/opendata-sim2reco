@@ -364,7 +364,7 @@ population. Right: vertex class marginals (0 unsnapped, 4 nearest plane, 8 farth
 Table~\ref{tab:closure} collects the classifier tests on the event-level variables and Table~\ref{tab:closure2}
 those on the prongs and the vertex. On the nine event-level variables the classifier reaches AUC
 \nAUCmarg{} without and \nAUCcond{} with the truth features (Table~\ref{tab:closure-ci} repeats the test on the
-CC-inclusive subset without the two calorimetric edge quantities, for both models and for the 2p2h events, with
+non-calorimetry subset without the two non-vertex calorimetric quantities, for both models and for the 2p2h events, with
 the classifier recipe rerun on fresh samples); no block exceeds
 \nAUCblockMax{} alone or \nAUCcondBlockMax{} conditionally, and the flags and multiplicity given the truth are at
 \nAUCflags{}. On the prong summaries ($N$, prongs with kinematics, proton fits, exiting prongs, leading
@@ -382,7 +382,7 @@ truth features added.}
 \begin{table}[h]\centering\small
 \input{../m3_1A_z/tables/closure_ccinc.tex}
 \caption{Closure AUC (0.5 is indistinguishable) with the evaluation's classifier recipe, on the nine generated
-variables and on the CC-inclusive subset that leaves out the non-vertex and isolated-blob energies, for the full
+variables and on the non-calorimetry subset that leaves out the non-vertex and isolated-blob energies, for the full
 test split and for the held-out 2p2h events, models A and B. ``+ truth'' adds the truth summary features, the
 flags and the multiplicity to the classifier. Values below 0.5 are fluctuations of an indistinguishable pair; the
 resolution of the test is about 0.005 on the full split and 0.01 on the 2p2h sample.}
@@ -750,12 +750,14 @@ blind one slightly more so, which is the only place the blindness is visible. A 
 floor scaled by 1.5 gives \nFloorBConsOODRMS{} overall on 2p2h and \nFloorBConsBlobsOOD{} for the blobs, at the
 cost of over-covering the control at \nFloorBConsCtlRMS{}.
 
-\paragraph{The CC-inclusive observable set.} The two quantities that carry the hard-edge residual are not used
-by a CC-inclusive measurement, which takes from the reconstruction the muon candidate and its MINOS match and
-charge, the muon momentum and angle, the vertex, the calorimetric recoil and the prong multiplicity; the
-non-vertex energy within 100\,mm and the isolated-blob energy belong to the low-recoil and quasi-elastic-like
-analyses. The budget is therefore also quoted for that set, with the two calorimetric edge quantities left out
-of the pulls but not out of the model or the output file. Over the remaining marginal observables, the recoil,
+\paragraph{The non-calorimetry observable set.} The two quantities that carry the hard-edge residual, the
+non-vertex energy within 100\,mm and the isolated-blob energy, are the inputs of neutron-related and
+quasi-elastic-like analyses; most other measurements take from the reconstruction the muon candidate with its
+MINOS match and charge, the muon momentum and angle, the vertex, the total calorimetric recoil and the prong
+multiplicity. That set, the seven generated variables without the two non-vertex calorimetric quantities
+(the total recoil is kept), is called the non-calorimetry set below. The budget is also quoted for it, with the
+two edge quantities left out of the pulls but not out of the model or the output file. Over its marginal
+observables, the recoil,
 the muon momentum ratio and angle and the prong count, the pulls with the epistemic term alone are
 \nCIBMargCtlRMS{} on the control and \nCIBMargOODRMS{} on 2p2h for model B (\nCIAMargCtlRMS{} and
 \nCIAMargOODRMS{} for A), and with the floor \nCIBFloorCtlRMS{} and \nCIBFloorOODRMS{} (\nCIBFloorOODWithin{} of
@@ -768,7 +770,7 @@ Section~\ref{sec:perf} restricted to the same set is in Table~\ref{tab:closure-c
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{../bayes_1A_z/figures/bayes_pulls_subset_CI.png}
-\caption{Marginal pulls over the CC-inclusive observable set (recoil, muon momentum ratio and angle, prong
+\caption{Marginal pulls over the non-calorimetry observable set (recoil, muon momentum ratio and angle, prong
 count), epistemic term only (dotted) and with the model-error floor from the training split (solid), for the
 test control and held-out 2p2h, model A (left) and model B (right).}
 \label{fig:bayes-ci}
