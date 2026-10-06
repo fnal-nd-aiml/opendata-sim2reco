@@ -68,7 +68,7 @@ def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_
           f"{d['offsets'][-1]} particles, {time.time()-t0:.0f} s", flush=True)
 
     model = Surrogate(d_model, 4, n_layers, flow_hidden, flow_layers, zero_flags=zero_flags).to(device)
-    if zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device))
+    if zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device)); model.zero_band = torch.tensor(tf.zero_band(), device=device)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     steps = epochs * len(ld["train"])
@@ -119,7 +119,9 @@ def load_model(path, device="cuda"):
     ck = torch.load(path, map_location=device, weights_only=False)
     c = ck["config"]; m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], zero_flags=c.get("zero_flags", False)).to(device)
     m.load_state_dict(ck["model"], strict=False); m.eval()  # old checkpoints lack the zero_fill buffer
-    return m, Tier1Transform.from_state(ck["transform"])
+    tf = Tier1Transform.from_state(ck["transform"])
+    if m.zero_flags: m.zero_band = torch.tensor(tf.zero_band(), device=device)
+    return m, tf
 
 
 @torch.no_grad()

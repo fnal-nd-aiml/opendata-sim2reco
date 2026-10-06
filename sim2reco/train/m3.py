@@ -56,7 +56,7 @@ def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, l
     print(f"data: {len(split)} events, {d['p_offsets'][-1]} prongs, {len(tf.planes.z)} vertex planes, {time.time()-t0:.0f} s", flush=True)
     ck = torch.load(init_from, map_location=device, weights_only=False); c = ck["config"]
     model = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=prong_layers, zero_flags=c.get("zero_flags", False)).to(device)
-    if model.zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device))  # the M3 transform is refitted
+    if model.zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device)); model.zero_band = torch.tensor(tf.zero_band(), device=device)  # the M3 transform is refitted
     own = model.state_dict()
     sd = {k: v for k, v in ck["model"].items() if k in own and own[k].shape == v.shape and k != "zero_fill"}  # skip re-shaped heads; keep the refitted zero_fill
     missing, unexpected = model.load_state_dict(sd, strict=False)
@@ -91,7 +91,9 @@ def load_model(path, device="cuda"):
     ck = torch.load(path, map_location=device, weights_only=False); c = ck["config"]
     m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=c.get("prong_layers", 3), zero_flags=c.get("zero_flags", False)).to(device)
     m.load_state_dict(ck["model"], strict=False); m.eval()  # old checkpoints lack the zero_fill buffer
-    return m, Tier1Transform.from_state(ck["transform"]), ProngTransform.from_state(ck["prong_transform"])
+    tf = Tier1Transform.from_state(ck["transform"])
+    if m.zero_flags: m.zero_band = torch.tensor(tf.zero_band(), device=device)
+    return m, tf, ProngTransform.from_state(ck["prong_transform"])
 
 
 def _event_prong_summary(theta, kin, piP, pf, pP, sc, ex, offsets):

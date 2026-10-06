@@ -31,6 +31,7 @@ class Surrogate(nn.Module):
         if zero_flags:
             self.zero = nn.Sequential(nn.Linear(d_model, d_model), nn.SiLU(), nn.Linear(d_model, 2))
         self.register_buffer("zero_fill", torch.zeros(2))  # model-space value for E = 0 (set from the transform)
+        self.zero_band = None  # [2, 2] model-space [lo, hi] of the dequantisation band; set from the transform at load/train
         self.flag_emb = nn.Linear(4 if zero_flags else 2, 32)
         self.n_emb = nn.Embedding(N_PRONG_CLASSES, 32)
         self.flow = FlowMatcher(TIER1_DIM, d_model + 64, flow_hidden, flow_layers)
@@ -116,7 +117,11 @@ class Surrogate(nn.Module):
         cond = self.flow_cond(z, flags, nprong)
         if self.zero_flags:
             x1 = self.flow.sample(cond, n_steps, dim_mask=self.dim_mask(flags))
-            zf = flags[:, 2:4] > 0; x1[:, ZERO_COLS] = torch.where(zf, self.zero_fill[None, :].expand(len(z), -1), x1[:, ZERO_COLS])
+            zf = flags[:, 2:4] > 0
+            if self.zero_band is not None:  # uniform over the dequantisation band, as the real zeros are in model space
+                lo, hi = self.zero_band[:, 0][None, :], self.zero_band[:, 1][None, :]; fill = lo + torch.rand(len(z), 2, device=z.device) * (hi - lo)
+            else: fill = self.zero_fill[None, :].expand(len(z), -1)
+            x1[:, ZERO_COLS] = torch.where(zf, fill, x1[:, ZERO_COLS])
         else:
             x1 = self.flow.sample(cond, n_steps)
         out = {"exist": exist, "minos": flags[:, 0] > 0, "charge": flags[:, 1] > 0, "nprong": nprong, "x1": x1, "p0": p0, "pn": pn, "flags": flags}
