@@ -11,6 +11,7 @@ if __name__ == "__main__":
     ap.add_argument("--epochs", type=int, default=20); ap.add_argument("--bs", type=int, default=1024); ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--max-train", type=int, default=None); ap.add_argument("--eval-only", action="store_true"); ap.add_argument("--m1", default="reports/m1_1A/metrics.json"); ap.add_argument("--exclude-inttype", type=int, nargs="*", default=None, help="GENIE intType codes held out of train/val (8 = 2p2h)"); ap.add_argument("--only-inttype", type=int, nargs="*", default=None, help="evaluate only test events of these intType codes")
     ap.add_argument("--ke-cut", type=float, default=10.0, help="hadron KE threshold [MeV] for input tokens"); ap.add_argument("--neutrons", dest="neutrons", action="store_true", default=True, help="admit neutrons as input tokens (default)"); ap.add_argument("--no-neutrons", dest="neutrons", action="store_false")
+    ap.add_argument("--no-zero-flags", dest="zero_flags", action="store_false", default=True, help="disable the zero-flag heads for the two zero-spike energies"); ap.add_argument("--no-bucket", dest="bucket", action="store_false", default=True, help="plain shuffled batches instead of length-bucketed ones")
     ap.add_argument("--d-model", type=int, default=128); ap.add_argument("--n-layers", type=int, default=4); ap.add_argument("--n-files", type=int, default=None)
     ap.add_argument("--flow-hidden", type=int, default=768); ap.add_argument("--flow-layers", type=int, default=5); ap.add_argument("--steps", type=int, default=100)
     a = ap.parse_args()
@@ -34,7 +35,7 @@ if __name__ == "__main__":
         model, tf = load_model(pathlib.Path(a.out_dir) / "model.pt")
         idx, ds, ld = make_loaders(d, split, tf, a.bs, 0)
     else:
-        d, split, tf, idx, ld, out = train(stems, a.out_dir, a.epochs, a.bs, a.lr, 0, "cuda", a.d_model, a.n_layers, a.flow_hidden, a.flow_layers, max_train_events=a.max_train, exclude_inttype=a.exclude_inttype, ke_cut_mev=a.ke_cut, keep_neutrons=a.neutrons)
+        d, split, tf, idx, ld, out = train(stems, a.out_dir, a.epochs, a.bs, a.lr, 0, "cuda", a.d_model, a.n_layers, a.flow_hidden, a.flow_layers, max_train_events=a.max_train, exclude_inttype=a.exclude_inttype, ke_cut_mev=a.ke_cut, keep_neutrons=a.neutrons, zero_flags=a.zero_flags, bucket=a.bucket)
         model, tf = load_model(pathlib.Path(a.out_dir) / "model.pt")
     idx, ld = restrict(d, idx, ld, tf)
     m1 = json.load(open(a.m1)) if pathlib.Path(a.m1).exists() else None

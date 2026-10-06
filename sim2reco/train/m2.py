@@ -11,7 +11,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 
-from ..data.compact import MODEL_NAMES, TIER1_NAMES, CompactDataset, Tier1Transform, collate, load_compact
+from ..data.compact import BucketBatchSampler, MODEL_NAMES, TIER1_NAMES, CompactDataset, Tier1Transform, collate, load_compact
 from ..data.dataset import split_by_subrun
 from ..eval import plots
 from ..eval.metrics import binary_metrics, calibration_by_bin, confusion, multiclass_metrics, sample_vs_real_1d
@@ -19,12 +19,20 @@ from ..models.surrogate import Surrogate
 from ..prep.features import event_features
 
 
-def make_loaders(d, split, tf, bs, seed, workers=4):
+def make_loaders(d, split, tf, bs, seed, workers=4, bucket=True):
     idx = {k: np.where(split == v)[0] for k, v in (("train", 0), ("val", 1), ("test", 2))}
     ds = {k: CompactDataset(d, v, tf, seed) for k, v in idx.items()}
-    ld = {k: DataLoader(ds[k], batch_size=bs, shuffle=(k == "train"), collate_fn=collate, num_workers=workers,
-                        drop_last=(k == "train"), persistent_workers=workers > 0) for k in ds}
+    ld = {k: DataLoader(ds[k], batch_size=bs, shuffle=False, collate_fn=collate, num_workers=workers, persistent_workers=workers > 0) for k in ds if k != "train"}
+    ld["train"] = train_loader(d, idx["train"], ds["train"], bs, seed, workers, bucket)
     return idx, ds, ld
+
+
+def train_loader(d, tr_idx, ds, bs, seed, workers=4, bucket=True):
+    """Training loader: length-bucketed shuffled batches (default) or plain shuffling."""
+    if bucket:
+        lengths = d["offsets"][tr_idx + 1] - d["offsets"][tr_idx]
+        return DataLoader(ds, batch_sampler=BucketBatchSampler(lengths, bs, seed), collate_fn=collate, num_workers=workers, persistent_workers=workers > 0)
+    return DataLoader(ds, batch_size=bs, shuffle=True, collate_fn=collate, num_workers=workers, drop_last=True, persistent_workers=workers > 0)
 
 
 def to_dev(b, dev):
@@ -43,7 +51,7 @@ def apply_holdout(d, split, exclude_inttype):
 
 def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_model=128, n_layers=4,
           flow_hidden=768, flow_layers=5, max_train_events=None, log_every=200, exclude_inttype=None,
-          ke_cut_mev=10.0, keep_neutrons=True):
+          ke_cut_mev=10.0, keep_neutrons=True, zero_flags=True, bucket=True):
     out = pathlib.Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed); np.random.seed(seed)
     t0 = time.time()
@@ -55,11 +63,12 @@ def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_
         split[drop] = -1
     ok_tr = (split == 0) & d["reco_exists"]
     tf = Tier1Transform().fit(d["tier1"][ok_tr], d["mu_true"][ok_tr], d["ctx"][ok_tr], seed)
-    idx, ds, ld = make_loaders(d, split, tf, bs, seed)
+    idx, ds, ld = make_loaders(d, split, tf, bs, seed, bucket=bucket)
     print(f"data: {len(d['subrun'])} events ({(split==0).sum()} train / {(split==1).sum()} val / {(split==2).sum()} test), "
           f"{d['offsets'][-1]} particles, {time.time()-t0:.0f} s", flush=True)
 
-    model = Surrogate(d_model, 4, n_layers, flow_hidden, flow_layers).to(device)
+    model = Surrogate(d_model, 4, n_layers, flow_hidden, flow_layers, zero_flags=zero_flags).to(device)
+    if zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device))
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     steps = epochs * len(ld["train"])
@@ -89,7 +98,7 @@ def train(stems, out_dir, epochs=20, bs=1024, lr=3e-4, seed=0, device="cuda", d_
         print(f"epoch {ep}: val " + " ".join(f"{k} {v:.4f}" for k, v in va.items()) + f"  total {tot:.4f}  [{rec['time']:.0f} s]", flush=True)
         if np.isfinite(tot) and tot < best:
             best = tot
-            torch.save({"model": model.state_dict(), "transform": tf.state(), "config": {"d_model": d_model, "n_layers": n_layers, "flow_hidden": flow_hidden, "flow_layers": flow_layers, "exclude_inttype": list(exclude_inttype or []), "ke_cut_mev": ke_cut_mev, "keep_neutrons": keep_neutrons}}, out / "model.pt")
+            torch.save({"model": model.state_dict(), "transform": tf.state(), "config": {"d_model": d_model, "n_layers": n_layers, "flow_hidden": flow_hidden, "flow_layers": flow_layers, "exclude_inttype": list(exclude_inttype or []), "ke_cut_mev": ke_cut_mev, "keep_neutrons": keep_neutrons, "zero_flags": zero_flags, "bucket": bucket}}, out / "model.pt")
     (out / "history.json").write_text(json.dumps(hist, indent=1))
     return d, split, tf, idx, ld, out
 
@@ -108,8 +117,8 @@ def write_data_table(stems, d, split, out_dir, epochs=None, n_params=None):
 
 def load_model(path, device="cuda"):
     ck = torch.load(path, map_location=device, weights_only=False)
-    c = ck["config"]; m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"]).to(device)
-    m.load_state_dict(ck["model"]); m.eval()
+    c = ck["config"]; m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], zero_flags=c.get("zero_flags", False)).to(device)
+    m.load_state_dict(ck["model"], strict=False); m.eval()  # old checkpoints lack the zero_fill buffer
     return m, Tier1Transform.from_state(ck["transform"])
 
 

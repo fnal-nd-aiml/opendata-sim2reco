@@ -11,14 +11,14 @@ from sim2reco.data.compact import load_compact, CompactDataset, collate
 from sim2reco.data.dataset import split_by_subrun
 from sim2reco.train.m3 import load_model
 from sim2reco.train.m2 import to_dev
-from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer
+from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer, heads_for
 from sim2reco.eval import plots
 
 ap = argparse.ArgumentParser(); ap.add_argument("out_dir"); ap.add_argument("--model", required=True); ap.add_argument("--slim-dir", default="data/slim_1A"); ap.add_argument("--n", type=int, default=30000); ap.add_argument("--steps", type=int, default=32); ap.add_argument("--tag", default="")
 a = ap.parse_args(); out = pathlib.Path(a.out_dir); (out / "figures").mkdir(parents=True, exist_ok=True); dev = "cuda"; rng = np.random.default_rng(0)
 D = pathlib.Path(a.model); model, tf, ptf = load_model(D / "model.pt"); ck = torch.load(D / "model.pt", map_location="cpu", weights_only=False)["config"]
 post = {k: GaussianLastLayer.from_state(s, dev) for k, s in torch.load(D / "bayes_last.pt", map_location="cpu", weights_only=False).items()}
-layers = {k: head_layer(model, p) for k, (p, _) in HEADS.items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
+layers = {k: head_layer(model, p) for k, (p, _) in heads_for(model).items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
 stems = sorted(p[:-len(".truth.parquet")] for p in glob.glob(f"{a.slim_dir}/*.truth.parquet"))
 d = load_compact(stems, ke_cut_mev=ck.get("ke_cut_mev", 50.0), keep_neutrons=ck.get("keep_neutrons", False)); split = split_by_subrun(d["subrun"], seed=0)
 idx = rng.permutation(np.where((split == 2) & ~np.isin(d["intType"], [8]))[0])[:a.n]
@@ -42,7 +42,7 @@ def flags(mode):
             lg = model.tier0(z); o["exist"].append(post["tier0"].var(taps["tier0"].h)[:, 0].cpu())
             pn = torch.softmax(model.card(z), -1); o["card"].append(post["card"].var(taps["card"].h).mean(1).cpu())
             fl = torch.stack([torch.rand(len(z), device=dev) < torch.sigmoid(lg)[:, 1], torch.zeros(len(z), dtype=torch.bool, device=dev)], -1).float()
-            cond = model.flow_cond(z, fl, torch.multinomial(pn, 1)[:, 0]); x = torch.randn(len(z), model.flow.dim, device=dev); dt = 1 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device=dev)
+            cond = model.flow_cond(z, model.full_flags(z, fl), torch.multinomial(pn, 1)[:, 0]); x = torch.randn(len(z), model.flow.dim, device=dev); dt = 1 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device=dev)
             for i in range(a.steps):
                 t = torch.full((len(z),), i * dt, device=dev); k1 = model.flow.v(x, t, cond); k2 = model.flow.v(x + 0.5 * dt * k1, t + 0.5 * dt, cond); g += dt * taps["flow"].h; x = (x + dt * k2).clamp(-20, 20)
             o["flow"].append(post["flow"].var(g).sum(1).cpu())

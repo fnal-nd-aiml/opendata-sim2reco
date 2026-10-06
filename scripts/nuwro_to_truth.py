@@ -35,7 +35,7 @@ for f in sorted(glob.glob(f"{a.nuwro_dir}/nuwro_*.root")):
     nu = arr["in_pdg"] == 14; Enu = ak.to_numpy(ak.fill_none(ak.firsts(arr["in_E"][nu]), np.nan))
     mu = arr["pdg"] == 13; assert ak.all(ak.sum(mu, axis=1) >= 1), f"{f}: events without a muon"
     lead = ak.argmax(ak.where(mu, arr["E"], -1.0), axis=1, keepdims=True)  # primary muon = most energetic mu- (rare DIS events carry an extra mu+mu- pair)
-    mu4 = np.column_stack([ak.to_numpy(ak.flatten(c[lead])) for c in (px, py, pz, arr["E"])])
+    mu4 = np.column_stack([ak.to_numpy(ak.fill_none(ak.flatten(c[lead]), np.nan)) for c in (px, py, pz, arr["E"])])  # plain float columns, no option type
     # Q2 and lepton-defined W: neutrino along the beam axis, detector frame
     bx, by, bz = from_beam(np.zeros(n), np.zeros(n), Enu); q = np.column_stack([bx - mu4[:, 0], by - mu4[:, 1], bz - mu4[:, 2], Enu - mu4[:, 3]])
     Q2 = q[:, 0] ** 2 + q[:, 1] ** 2 + q[:, 2] ** 2 - q[:, 3] ** 2; W = np.sqrt(np.clip(M_P ** 2 + 2 * M_P * q[:, 3] - Q2, 0, None))

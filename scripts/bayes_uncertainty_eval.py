@@ -16,7 +16,7 @@ from sim2reco.data.compact import load_compact, CompactDataset, collate
 from sim2reco.data.dataset import split_by_subrun
 from sim2reco.train.m3 import load_model
 from sim2reco.train.m2 import to_dev, _pad
-from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer
+from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer, heads_for
 from sim2reco.prep.features import event_features
 from sim2reco.eval import plots
 
@@ -25,7 +25,7 @@ ap.add_argument("--ood-inttype", type=int, nargs="*", default=[8]); ap.add_argum
 a = ap.parse_args(); out = pathlib.Path(a.out_dir); (out / "figures").mkdir(parents=True, exist_ok=True); (out / "tables").mkdir(exist_ok=True); dev = "cuda"; rng = np.random.default_rng(0)
 D = pathlib.Path(a.model); model, tf, ptf = load_model(D / "model.pt"); ck = torch.load(D / "model.pt", map_location="cpu", weights_only=False)["config"]
 post = {k: GaussianLastLayer.from_state(s, dev) for k, s in torch.load(D / "bayes_last.pt", map_location="cpu", weights_only=False).items()}
-layers = {k: head_layer(model, p) for k, (p, _) in HEADS.items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
+layers = {k: head_layer(model, p) for k, (p, _) in heads_for(model).items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
 stems = sorted(p[:-len(".truth.parquet")] for p in glob.glob(f"{a.slim_dir}/*.truth.parquet"))
 d = load_compact(stems, ke_cut_mev=ck.get("ke_cut_mev", 50.0), keep_neutrons=ck.get("keep_neutrons", False)); split = split_by_subrun(d["subrun"], seed=0)
 te = np.where(split == 2)[0]; ood = te[np.isin(d["intType"][te], a.ood_inttype)]; cs = np.where(split == a.control_split)[0]; ctl = rng.permutation(cs[~np.isin(d["intType"][cs], a.ood_inttype)])[:a.n_control]
@@ -41,7 +41,7 @@ def flag_pass(idx):
             pn = torch.softmax(model.card(z), -1); o["card"].append(post["card"].var(taps["card"].h).mean(1).cpu())
             # event flow: sample with the mean weights while accumulating g = sum_s dt h_s (features at the k2 evaluation)
             flags = torch.stack([torch.rand(len(z), device=dev) < torch.sigmoid(model.tier0(z))[:, 1], torch.zeros(len(z), dtype=torch.bool, device=dev)], -1).float()
-            nprong = torch.multinomial(pn, 1)[:, 0]; cond = model.flow_cond(z, flags, nprong)
+            nprong = torch.multinomial(pn, 1)[:, 0]; flags = model.full_flags(z, flags); cond = model.flow_cond(z, flags, nprong)
             x = torch.randn(len(z), model.flow.dim, device=dev); dt = 1.0 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device=dev)
             for i in range(a.steps):
                 t = torch.full((len(z),), i * dt, device=dev); k1 = model.flow.v(x, t, cond); k2 = model.flow.v(x + 0.5 * dt * k1, t + 0.5 * dt, cond); g += dt * taps["flow"].h; x = (x + dt * k2).clamp(-20, 20)
@@ -106,11 +106,11 @@ def binned(idx, draws, medges=None):
     mreal = {k: bin_frac(v[0], v[1]) for k, v in mspec.items()}
     for k in mspec: preds_m[k] = []; pstat_m[k] = []
     ds = CompactDataset(d, idx, tf, 0, prong_tf=ptf); preds = {k: [] for k in spec}; pstat = {k: [] for k in spec}
-    W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "card", "flow")}
+    W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in ("tier0", "card", "flow") + (("zero",) if model.zero_flags else ())}
     gen = torch.Generator(device=dev); gen.manual_seed(123)
     with torch.no_grad():
         for kdraw in range(draws):
-            for k in ("tier0", "card", "flow"):
+            for k in ("tier0", "card", "flow") + (("zero",) if model.zero_flags else ()):
                 dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
             torch.manual_seed(kdraw + 7); S = []
             for b in DataLoader(ds, batch_size=2048, collate_fn=collate, num_workers=4):
@@ -123,7 +123,7 @@ def binned(idx, draws, medges=None):
             for k, (m_, e_) in draws_.items(): preds[k].append(m_); pstat[k].append(e_)
             mdraws = {"marg_nprong": npr, "marg_recoil": Sv[:, 2 + 6], "marg_nonvtx100": Sv[:, 2 + 7], "marg_blobs": Sv[:, 2 + 8], "marg_muP": Sv[:, 2 + 0], "marg_dthx": Sv[:, 2 + 1]}
             for k, y in mdraws.items(): f_, e_ = bin_frac(y, mspec[k][1]); preds_m[k].append(f_); pstat_m[k].append(e_)
-    for k in ("tier0", "card", "flow"): layers[k].weight.data, layers[k].bias.data = W0[k]
+    for k in W0: layers[k].weight.data, layers[k].bias.data = W0[k]
     out_ = {}
     for k, v in spec.items():
         P = np.array(preds[k]); mu = np.nanmean(P, 0); r_, se = real[k]

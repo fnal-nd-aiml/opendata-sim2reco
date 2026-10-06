@@ -21,7 +21,7 @@ def write_ntuple(path: str, branches: dict, tree: str = "MasterAnaDev", counter_
     data = {}
     for k, v in branches.items():
         if isinstance(v, ak.Array):
-            data[k] = v
+            data[k] = ak.fill_none(v, 0) if "?" in str(v.type) else v  # option types (e.g. from a Parquet round trip) are not writable
         else:
             data[k] = np.asarray(v)
     with uproot.recreate(path) as f:

@@ -95,6 +95,13 @@ class GaussianLastLayer:
 HEADS = {"tier0": ("tier0", "laplace"), "card": ("card", "laplace"), "vtx": ("vtx", "laplace"), "flow": ("flow.v.out", "regression"), "prong": ("prong.v.out", "regression")}
 
 
+def heads_for(model):
+    """HEADS present on this model (zero-flag heads when the model has them; prong/vtx only for Tier 2)."""
+    H = {k: v for k, v in HEADS.items() if k not in ("vtx", "prong") or getattr(model, "tier2", False)}
+    if getattr(model, "zero_flags", False): H["zero"] = ("zero", "laplace")
+    return H
+
+
 def head_layer(model, path):
     mod = model
     for p in path.split("."): mod = getattr(mod, p)

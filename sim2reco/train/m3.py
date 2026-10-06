@@ -23,11 +23,11 @@ from . import m2
 PRONG_FIELD_NAMES = ["theta", "phi", "has_kin", "pi_P", "has_p", "p_P", "p_score1", "is_primary", "is_exiting"]
 
 
-def make_loaders(d, split, tf, ptf, bs, seed, workers=4):
+def make_loaders(d, split, tf, ptf, bs, seed, workers=4, bucket=True):
     idx = {k: np.where(split == v)[0] for k, v in (("train", 0), ("val", 1), ("test", 2))}
     ds = {k: CompactDataset(d, v, tf, seed, prong_tf=ptf) for k, v in idx.items()}
-    ld = {k: DataLoader(ds[k], batch_size=bs, shuffle=(k == "train"), collate_fn=collate, num_workers=workers,
-                        drop_last=(k == "train"), persistent_workers=workers > 0) for k in ds}
+    ld = {k: DataLoader(ds[k], batch_size=bs, shuffle=False, collate_fn=collate, num_workers=workers, persistent_workers=workers > 0) for k in ds if k != "train"}
+    ld["train"] = m2.train_loader(d, idx["train"], ds["train"], bs, seed, workers, bucket)
     return idx, ds, ld
 
 
@@ -55,16 +55,17 @@ def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, l
     idx, ds, ld = make_loaders(d, split, tf, ptf, bs, seed)
     print(f"data: {len(split)} events, {d['p_offsets'][-1]} prongs, {len(tf.planes.z)} vertex planes, {time.time()-t0:.0f} s", flush=True)
     ck = torch.load(init_from, map_location=device, weights_only=False); c = ck["config"]
-    model = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=prong_layers).to(device)
+    model = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=prong_layers, zero_flags=c.get("zero_flags", False)).to(device)
+    if model.zero_flags: model.zero_fill.copy_(torch.tensor(tf.zero_fill(), device=device))  # the M3 transform is refitted
     own = model.state_dict()
-    sd = {k: v for k, v in ck["model"].items() if k in own and own[k].shape == v.shape}  # skip re-shaped heads
+    sd = {k: v for k, v in ck["model"].items() if k in own and own[k].shape == v.shape and k != "zero_fill"}  # skip re-shaped heads; keep the refitted zero_fill
     missing, unexpected = model.load_state_dict(sd, strict=False)
     print(f"warm start from {init_from}: {len(missing)} new tensors (vtx head + prong flow), {len(unexpected)} unexpected", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     steps = epochs * len(ld["train"])
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=steps, pct_start=0.05)
     hist, best, step = [], np.inf, 0
-    cfg = dict(c, tier2=True, prong_layers=prong_layers, exclude_inttype=list(exclude_inttype or []), ke_cut_mev=ke_cut_mev, keep_neutrons=keep_neutrons)
+    cfg = dict(c, tier2=True, prong_layers=prong_layers, exclude_inttype=list(exclude_inttype or []), ke_cut_mev=ke_cut_mev, keep_neutrons=keep_neutrons, zero_flags=model.zero_flags)
     for ep in range(epochs):
         model.train(); agg = {}
         for b in ld["train"]:
@@ -88,8 +89,8 @@ def train(stems, out_dir, init_from="reports/m2/model.pt", epochs=12, bs=1024, l
 
 def load_model(path, device="cuda"):
     ck = torch.load(path, map_location=device, weights_only=False); c = ck["config"]
-    m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=c.get("prong_layers", 3)).to(device)
-    m.load_state_dict(ck["model"]); m.eval()
+    m = Surrogate(c["d_model"], 4, c["n_layers"], c["flow_hidden"], c["flow_layers"], tier2=True, prong_layers=c.get("prong_layers", 3), zero_flags=c.get("zero_flags", False)).to(device)
+    m.load_state_dict(ck["model"], strict=False); m.eval()  # old checkpoints lack the zero_fill buffer
     return m, Tier1Transform.from_state(ck["transform"]), ProngTransform.from_state(ck["prong_transform"])
 
 

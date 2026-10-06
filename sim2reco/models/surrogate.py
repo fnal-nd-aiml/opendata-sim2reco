@@ -14,16 +14,24 @@ TIER1_DIM = 9  # MODEL_COLS of sim2reco.data.compact
 PRONG_DIM = 10  # sim2reco.data.prongs_tf.PRONG_DIM
 N_VTX_CLASSES = 9  # sim2reco.data.prongs_tf.VertexPlaneTable.N_CLASSES
 PRONG_DIM_CAP = 8  # sim2reco.data.compact.N_PRONG_CAP
+ZERO_COLS = [7, 8]  # Tier1Transform.ZERO_MODEL_COLS: log_recoil_nonvtx100, log_nonvtx_iso_blobs_E
 
 
 class Surrogate(nn.Module):
     def __init__(self, d_model=128, n_heads=4, n_layers=4, flow_hidden=512, flow_layers=4, tier2=False,
-                 prong_layers=3):
+                 prong_layers=3, zero_flags=False):
         super().__init__()
         self.enc = SetEncoder(d_model, n_heads, n_layers)
         self.tier0 = nn.Sequential(nn.Linear(d_model, d_model), nn.SiLU(), nn.Linear(d_model, 3))
         self.card = nn.Sequential(nn.Linear(d_model, d_model), nn.SiLU(), nn.Linear(d_model, N_PRONG_CLASSES))
-        self.flag_emb = nn.Linear(2, 32)
+        # zero flags: Bernoulli heads for "non-vertex energy within 100 mm is exactly zero" and "isolated-blob
+        # energy is exactly zero" (conditional on reconstruction); the flow then models only the positive part
+        # of those two columns, with the flags in its conditioning, and the sampler fills exact zeros.
+        self.zero_flags = zero_flags
+        if zero_flags:
+            self.zero = nn.Sequential(nn.Linear(d_model, d_model), nn.SiLU(), nn.Linear(d_model, 2))
+        self.register_buffer("zero_fill", torch.zeros(2))  # model-space value for E = 0 (set from the transform)
+        self.flag_emb = nn.Linear(4 if zero_flags else 2, 32)
         self.n_emb = nn.Embedding(N_PRONG_CLASSES, 32)
         self.flow = FlowMatcher(TIER1_DIM, d_model + 64, flow_hidden, flow_layers)
         self.tier2 = tier2
@@ -37,6 +45,20 @@ class Surrogate(nn.Module):
     def encode(self, b, return_tokens=False):
         z, h = self.enc(b["cls"], b["mom"], b["mask"], b["ctx"])
         return (z, h) if return_tokens else z
+
+    def full_flags(self, z, flags, zflags=None):
+        """Flow-conditioning flags: (minos, charge) plus, for a zero-flag model, the two zero flags, sampled from
+        the zero heads when not given (teacher forcing passes the true ones)."""
+        if not self.zero_flags: return flags
+        if flags.shape[1] == 4: return flags
+        if zflags is None: zflags = (torch.rand(len(z), 2, device=z.device) < torch.sigmoid(self.zero(z))).float()
+        return torch.cat([flags, zflags], -1)
+
+    def dim_mask(self, flags):
+        """[n, TIER1_DIM] mask: the zero-spike energy columns are switched off when their zero flag is set."""
+        m = torch.ones(len(flags), TIER1_DIM, device=flags.device)
+        if self.zero_flags: m[:, ZERO_COLS] = 1.0 - flags[:, 2:4]
+        return m
 
     def flow_cond(self, z, flags, nprong):
         return torch.cat([z, self.flag_emb(flags), self.n_emb(nprong.clamp(0, N_PRONG_CLASSES - 1))], -1)
@@ -54,9 +76,12 @@ class Surrogate(nn.Module):
         l_charge = F.binary_cross_entropy_with_logits(logits[minos, 2], t0[minos, 2]) if minos.any() else logits.sum() * 0
         l_card = F.cross_entropy(self.card(z[reco]), b["nprong"][reco]) if reco.any() else logits.sum() * 0
         fl = reco & (b["valid"] > 0)   # exclude the rare corrupt tuple entries from the flow loss
-        cond = self.flow_cond(z[fl], t0[fl, 1:3], b["nprong"][fl])
-        l_flow = self.flow.loss(b["x1"][fl], cond).mean() if fl.any() else logits.sum() * 0
+        flags = self.full_flags(z[fl], t0[fl, 1:3], b["zflags"][fl]) if self.zero_flags else t0[fl, 1:3]
+        cond = self.flow_cond(z[fl], flags, b["nprong"][fl])
+        l_flow = self.flow.loss(b["x1"][fl], cond, self.dim_mask(flags) if self.zero_flags else None).mean() if fl.any() else logits.sum() * 0
         out = {"exist": l_exist, "minos": l_minos, "charge": l_charge, "card": l_card, "flow": l_flow}
+        if self.zero_flags:
+            out["zero"] = F.binary_cross_entropy_with_logits(self.zero(z[fl]), b["zflags"][fl]) if fl.any() else logits.sum() * 0
         if self.tier2:
             out["vtx"] = F.cross_entropy(self.vtx_logits(cond, b["vphase"][fl]), b["vclass"][fl]) if fl.any() else logits.sum() * 0
             pm = b["pmask"][fl]; has = pm.any(1)
@@ -85,10 +110,16 @@ class Surrogate(nn.Module):
         minos = u[:, 1] < p0[:, 1]
         charge = minos & (u[:, 2] < p0[:, 2])
         flags = torch.stack([minos, charge], -1).float() if teacher_flags is None else teacher_flags
+        flags = self.full_flags(z, flags)  # adds sampled zero flags for a zero-flag model
         nprong = torch.multinomial(pn, 1)[:, 0] if teacher_nprong is None else teacher_nprong
         cond = self.flow_cond(z, flags, nprong)
-        x1 = self.flow.sample(cond, n_steps)
-        out = {"exist": exist, "minos": flags[:, 0] > 0, "charge": flags[:, 1] > 0, "nprong": nprong, "x1": x1, "p0": p0, "pn": pn}
+        if self.zero_flags:
+            x1 = self.flow.sample(cond, n_steps, dim_mask=self.dim_mask(flags))
+            zf = flags[:, 2:4] > 0; x1[:, ZERO_COLS] = torch.where(zf, self.zero_fill[None, :].expand(len(z), -1), x1[:, ZERO_COLS])
+        else:
+            x1 = self.flow.sample(cond, n_steps)
+        out = {"exist": exist, "minos": flags[:, 0] > 0, "charge": flags[:, 1] > 0, "nprong": nprong, "x1": x1, "p0": p0, "pn": pn, "flags": flags}
+        if self.zero_flags: out["zflags"] = flags[:, 2:4] > 0
         if self.tier2:
             pv = F.softmax(self.vtx_logits(cond, b["vphase"]), -1)
             out["vclass"] = torch.multinomial(pv, 1)[:, 0]; out["pv"] = pv

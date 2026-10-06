@@ -76,9 +76,9 @@ def main():
     epi = None
     bl_path = pathlib.Path(a.model_dir) / "bayes_last.pt"
     if a.epi_draws > 0 and bl_path.exists():
-        from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer
+        from sim2reco.models.bayes_last import FeatureTap, GaussianLastLayer, HEADS, head_layer, heads_for
         post = {k: GaussianLastLayer.from_state(v, "cuda") for k, v in torch.load(bl_path, map_location="cpu", weights_only=False).items()}
-        layers = {k: head_layer(model, p) for k, (p, _) in HEADS.items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
+        layers = {k: head_layer(model, p) for k, (p, _) in heads_for(model).items()}; taps = {k: FeatureTap(l) for k, l in layers.items()}
         # analytic: logit variances of the three flags, mean multiplicity-logit variance, and the event-flow flag along the nominal trajectory
         A_exist, A_card, A_flow = [], [], []
         with torch.no_grad():
@@ -87,7 +87,7 @@ def main():
                 b = to_dev(b, "cuda"); z, _ = model.enc(b["cls"], b["mom"], b["mask"], b["ctx"]); lg = model.tier0(z); A_exist.append(post["tier0"].var(taps["tier0"].h).cpu())
                 pn = torch.softmax(model.card(z), -1); A_card.append(post["card"].var(taps["card"].h).mean(1).cpu())
                 u = torch.rand_like(lg); flags = torch.stack([u[:, 1] < torch.sigmoid(lg)[:, 1], (u[:, 1] < torch.sigmoid(lg)[:, 1]) & (u[:, 2] < torch.sigmoid(lg)[:, 2])], -1).float()
-                cond = model.flow_cond(z, flags, torch.multinomial(pn, 1)[:, 0]); x = torch.randn(len(z), model.flow.dim, device="cuda"); dt = 1.0 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device="cuda")
+                cond = model.flow_cond(z, model.full_flags(z, flags), torch.multinomial(pn, 1)[:, 0]); x = torch.randn(len(z), model.flow.dim, device="cuda"); dt = 1.0 / a.steps; g = torch.zeros(len(z), layers["flow"].in_features, device="cuda")
                 for i in range(a.steps):
                     t = torch.full((len(z),), i * dt, device="cuda"); k1 = model.flow.v(x, t, cond); k2 = model.flow.v(x + 0.5 * dt * k1, t + 0.5 * dt, cond); g += dt * taps["flow"].h; x = (x + dt * k2).clamp(-20, 20)
                 A_flow.append(post["flow"].var(g).cpu())
@@ -96,7 +96,7 @@ def main():
         W0 = {k: (layers[k].weight.data.clone(), layers[k].bias.data.clone()) for k in layers}
         gen = torch.Generator(device="cuda"); gen.manual_seed(a.seed + 1000); draws = []
         for k_ in range(a.epi_draws):
-            for k in ("tier0", "card", "flow") + (("prong",) if tier2 else ()):
+            for k in ("tier0", "card", "flow") + (("prong",) if tier2 else ()) + (("zero",) if model.zero_flags else ()):
                 dW, db = post[k].sample_delta(gen); layers[k].weight.data = W0[k][0] + dW; layers[k].bias.data = W0[k][1] + db
             draws.append(generate(a.seed))
         for k in layers: layers[k].weight.data, layers[k].bias.data = W0[k]
